@@ -1,12 +1,13 @@
 function output = runHydra(input, varargin)
 
     % Input parameters
-    input_default = struct('DRate'         , []  , ...
-                           'totalTime'     , []  , ...
-                           'numTimesteps'  , 100 , ...
-                           'validateJson'  , true, ...
-                           'lowRateParams' , []  , ...
-                           'highRateParams', []);
+    input_default = struct('DRate'                     , []  , ...
+                           'totalTime'                 , []  , ...
+                           'numTimesteps'              , 100 , ...
+                           'validateJson'              , true, ...
+                           'lowRateParams'             , []  , ...
+                           'highRateParams'            , []  , ...
+                           'include_current_collectors', false);
 
     if not(isempty(input))
         fds = fieldnames(input);
@@ -38,9 +39,16 @@ function output = runHydra(input, varargin)
     co    = 'Coating';
     bd    = 'Binder';
     ca    = 'ConductingAdditive';
+    cc    = 'CurrentCollector';
 
     % Load base json
     jsonstruct = parseBattmoJson(fullfile(getHydra0Dir(), 'parameters', 'h0b-base.json'));
+
+    if input.include_current_collectors
+        jsonstruct.include_current_collectors = true;
+        jsonstruct_cc = parseBattmoJson(fullfile(getHydra0Dir(), 'parameters', 'h0b-cc.json'));
+        jsonstruct = mergeJsonStructs({jsonstruct_cc, jsonstruct});
+   end
 
     % Set low rate params
     if not(isempty(input.lowRateParams))
@@ -54,6 +62,10 @@ function output = runHydra(input, varargin)
         jsonstruct = mergeJsonStructs({jsonstruct_high_rate_params, jsonstruct}, 'warn', false);
     end
 
+    % Load geometry
+    jsonstruct_geom = parseBattmoJson(fullfile(getHydra0Dir(), 'parameters', 'h0b-geometry-1d.json'));
+    jsonstruct = mergeJsonStructs({jsonstruct_geom, jsonstruct});
+
     % NB: json validation requires python
     if input.validateJson
         validateJsonStruct(jsonstruct);
@@ -61,10 +73,7 @@ function output = runHydra(input, varargin)
 
     % Convert to battery input parameters
     paramobj = BatteryInputParams(jsonstruct);
-
-    % Load geometry
-    jsonstruct_geom = parseBattmoJson(fullfile(getHydra0Dir(), 'parameters', 'h0b-geometry-1d.json'));
-    paramobj = setupBatteryGridFromJson(paramobj, jsonstruct_geom);
+    paramobj = setupBatteryGridFromJson(paramobj, jsonstruct);
 
     % Set rate if provided
     if not(isempty(input.DRate))

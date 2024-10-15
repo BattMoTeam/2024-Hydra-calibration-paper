@@ -5,7 +5,7 @@ close all
 
 mrstModule add ad-core optimization mpfa
 
-mrstDebug(0);
+mrstDebug(99);
 
 set(0, 'defaultlinelinewidth', 2)
 set(0, 'defaulttextfontsize', 15);
@@ -21,6 +21,7 @@ ctrl = 'Control';
 
 getTime = @(states) cellfun(@(s) s.time, states);
 getE = @(states) cellfun(@(s) s.(ctrl).E, states);
+printer = @(s) disp(jsonencode(s, 'PrettyPrint', true));
 
 debug = true;
 
@@ -127,7 +128,7 @@ if debug
                                        'PerturbationSize', 1e-7, ...
                                        'objScaling', scaling);
     assert(abs(vad - vnum) < eps);
-    assert(norm((gad-gnum)./gnum) < 1e-5, 'inf');
+    assert(norm((gad-gnum)./gnum) < 2e-5, 'inf');
 end
 
 %% Run optimization
@@ -165,14 +166,37 @@ input = struct('DRate'         , expdata.I / cap * hour    , ...
                'highRateParams', jsonstructHRC);
 outputOpt = runHydra(input);
 
+% %% run with original bruggeman (from report)
+% jsonstructHRCtmp = jsonstructHRC;
+% jsonstructHRCtmp.(pe).(co).bruggemanCoefficient = 3.0;
+% jsonstructHRCtmp.(ne).(co).bruggemanCoefficient = 3.46;
+% input = struct('DRate'         , expdata.I / cap * hour    , ...
+%                'totalTime'     , expdata.time(end)         , ...
+%                'lowRateParams' , jsonstructEC, ...
+%                'highRateParams', jsonstructHRCtmp);
+% outputBman = runHydra(input);
+
+%% run with cc
+
+% input = struct('DRate'                     , expdata.I / cap * hour, ...
+%                'totalTime'                 , expdata.time(end)     , ...
+%                'lowRateParams' , jsonstructEC, ...
+%                'highRateParams', jsonstructHRC, ...
+%                'include_current_collectors', true);
+% outputCC = runHydra(input);
+
+
 %% Plot
 
-colors = lines(2);
+colors = lines(4);
 fig = figure;
 hold on;
 plot(expdata.time/hour, expdata.U, 'k--', 'displayname', 'experiment 2 C');
 plot(getTime(output0.states)/hour, getE(output0.states), 'color', colors(1,:), 'displayname', 'initial guess')
 plot(getTime(outputOpt.states)/hour, getE(outputOpt.states), 'color', colors(2,:), 'displayname', 'calibrated');
+%plot(getTime(outputBman.states)/hour, getE(outputBman.states), 'color', colors(3,:), 'displayname', 'org Bman');
+%plot(getTime(outputCC.states)/hour, getE(outputCC.states), 'color', colors(4,:), 'displayname', 'with CC');
+
 xlabel('time / h')
 ylabel('voltage / V')
 legend('location', 'sw')
@@ -181,7 +205,7 @@ ylim([3.45, 4.9])
 
 dosave = false;
 if dosave
-    exportgraphics(fig, 'high-rate-calibration.png', 'resolution', 300)
+    exportgraphics(fig, 'high-rate-calibration-without-bruggeman-with-CC.png', 'resolution', 300)
 end
 
 

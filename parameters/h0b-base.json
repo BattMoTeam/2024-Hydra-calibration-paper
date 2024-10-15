@@ -69,7 +69,6 @@
           "volumetricSurfaceArea": 1403071.1
         },
         "SolidDiffusion": {
-          "N": 10,
           "activationEnergyOfDiffusion": 13820.0,
           "referenceDiffusionCoefficient": 1e-12,
           "particleRadius": 1.63e-05
@@ -117,7 +116,6 @@
           "volumetricSurfaceArea": 2567373.4
         },
         "SolidDiffusion": {
-          "N": 10,
           "activationEnergyOfDiffusion": 5630.0,
           "referenceDiffusionCoefficient": 1e-12,
           "particleRadius": 8.94e-06
