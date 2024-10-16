@@ -87,20 +87,21 @@ classdef HighRateCalibration
         function json = export(HRC, setup)
 
             % Standard params
-            locs1 = cellfun(@(p) p.location, HRC.stdParams, 'uniformoutput', false)';
-            vals1 = cellfun(@(p) p.getParameterValue(setup), HRC.stdParams)';
+            locs = cellfun(@(p) p.location, HRC.stdParams, 'uniformoutput', false)';
+            vals = cellfun(@(p) p.getParameterValue(setup), HRC.stdParams)';
 
-            % Custom params
-            locs2 = cellfun(@(p) p.location, HRC.customParamsSpec, 'uniformoutput', false);
-            vals2 = cellfun(@(p) p.getParameterValue(setup), HRC.customParams, 'uniformoutput', false)';
+            if not(isempty(HRC.customParamsSpec))
+                % Custom params
+                locs2 = cellfun(@(p) p.location, HRC.customParamsSpec, 'uniformoutput', false);
+                vals2 = cellfun(@(p) p.getParameterValue(setup), HRC.customParams, 'uniformoutput', false)';
 
-            locs = locs1;
-            locs2 = [locs2{:}];
-            for k = 1:size(locs2, 1)
-                locs{end+1} = locs2(k,:);
+                locs2 = [locs2{:}];
+                for k = 1:size(locs2, 1)
+                    locs{end+1} = locs2(k,:);
+                end
+
+                vals = [vals; vals2{:}];
             end
-
-            vals = [vals1; vals2{:}];
 
             json = struct();
 
