@@ -5,7 +5,7 @@ close all
 
 mrstModule add ad-core optimization mpfa
 
-mrstDebug(99);
+%mrstDebug(99);
 
 set(0, 'defaultlinelinewidth', 2)
 set(0, 'defaulttextfontsize', 15);
@@ -72,7 +72,7 @@ end
 % output.states{end}.time)
 simtimes = getTime(output0.states);
 assert(expdata.time(1) <= simtimes(1));
-assert(abs(expdata.time(end) - simtimes(end)) < 1e-11);
+assert(abs(expdata.time(end) - simtimes(end)) < 1e-11, 'expdata end time %g but sim end time %g', expdata.time(end)/hour, simtimes(end)/hour);
 
 Evals     = interp1(expdata.time, expdata.U, simtimes, 'linear', 'extrap');
 statesExp = cell(numel(output0.states), 1);
@@ -107,7 +107,7 @@ v = lsq(simulatorSetup.model, output0.states, simulatorSetup.schedule);
 scaling = sum([v{:}]);
 
 objective = @(p, varargin) evalObjectiveBattmo(p, lsq, simulatorSetup, parameters, ...
-                                    'objScaling', scaling, varargin{:});
+                                               'objScaling', scaling, varargin{:});
 
 if debug
     % The least squares function evaluated at the experimental values
@@ -128,7 +128,7 @@ if debug
                                        'PerturbationSize', 1e-7, ...
                                        'objScaling', scaling);
     assert(abs(vad - vnum) < eps);
-    assert(norm((gad-gnum)./gnum) < 2e-5, 'inf');
+    assert(norm((gad-gnum)./gnum, 'inf') < 1e-5);
 end
 
 %% Run optimization
@@ -208,6 +208,40 @@ if dosave
     exportgraphics(fig, 'high-rate-calibration-without-bruggeman-with-CC.png', 'resolution', 300)
 end
 
+
+return
+
+%% Play with Bruggemen
+
+bman_pe = linspace(3.46, 7, 5);
+bman_ne = linspace(3, 4, 5);
+
+for k = 1:numel(bman_pe)
+    for m = 1:numel(bman_ne)
+        jsonstruct = outputOpt.jsonstruct;
+
+        jsonstruct.(pe).(co).bruggemanCoefficient = bman_pe(k);
+        jsonstruct.(ne).(co).bruggemanCoefficient = bman_ne(m);
+
+        name = tempname;
+        writeJsonStruct(jsonstruct, name);
+
+        input = struct('DRate'         , expdata.I / cap * hour    , ...
+                       'totalTime'     , expdata.time(end)         , ...
+                       'lowRateParams' , jsonstructEC, ...
+                       'highRateParams', jsonstructHRC, ...
+                       'baseJson', name);
+
+        outputTmp = runHydra(input);
+
+        % plot
+        figure(fig); hold on;
+        s = sprintf('PE %1.2f NE %1.2f', jsonstruct.(pe).(co).bruggemanCoefficient, jsonstruct.(ne).(co).bruggemanCoefficient);
+        plot(getTime(outputTmp.states)/hour, getE(outputTmp.states), 'displayname', s);
+        drawnow
+
+    end
+end
 
 %{
 Copyright 2021-2024 SINTEF Industry, Sustainable Energy Technology

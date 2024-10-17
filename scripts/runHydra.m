@@ -7,7 +7,8 @@ function output = runHydra(input, varargin)
                            'validateJson'              , true, ...
                            'lowRateParams'             , []  , ...
                            'highRateParams'            , []  , ...
-                           'include_current_collectors', false);
+                           'include_current_collectors', true, ...
+                           'baseJson', []);
 
     if not(isempty(input))
         fds = fieldnames(input);
@@ -42,11 +43,25 @@ function output = runHydra(input, varargin)
     cc    = 'CurrentCollector';
 
     % Load base json
-    jsonstruct = parseBattmoJson(fullfile(getHydra0Dir(), 'parameters', 'h0b-base.json'));
+    if isempty(input.baseJson)
+        jsonstruct = parseBattmoJson(fullfile(getHydra0Dir(), 'parameters', 'h0b-base.json'));
+    else
+        jsonstruct = parseBattmoJson(input.baseJson);
+    end
 
     if input.include_current_collectors
         jsonstruct.include_current_collectors = true;
         jsonstruct_cc = parseBattmoJson(fullfile(getHydra0Dir(), 'parameters', 'h0b-cc.json'));
+
+
+
+        jsonstruct_cc.(pe).(cc).electronicConductivity = 1e-2*jsonstruct_cc.(pe).(cc).electronicConductivity;
+        jsonstruct_cc.(ne).(cc).electronicConductivity = 1e-2*jsonstruct_cc.(pe).(cc).electronicConductivity;
+
+        % keyboard;
+        % jsonstruct_cc.(pe).(cc).electronicConductivity = 1e-4;
+        % jsonstruct_cc.(ne).(cc).electronicConductivity = 1e-4;
+
         jsonstruct = mergeJsonStructs({jsonstruct_cc, jsonstruct});
    end
 
@@ -71,6 +86,41 @@ function output = runHydra(input, varargin)
         validateJsonStruct(jsonstruct);
     end
 
+    % if not(isempty(input.DRate))
+    %     jsonstruct.(ctrl).DRate = input.DRate;
+    % end
+
+    % % Setup nonlinear solver
+    % jsonstruct_nls = parseBattmoJson(fullfile('Utilities', 'Linearsolvers', 'JsonDataFiles', 'default_direct_linear_solver.json'));
+    % jsonstruct = mergeJsonStructs({jsonstruct_nls, jsonstruct});
+
+    % % Setup timestepping
+    % if isempty(input.totalTime)
+    %     totalTime = 1*hour / jsonstruct.(ctrl).DRate;
+    % else
+    %     totalTime = input.totalTime;
+    % end
+    % dt = totalTime / input.numTimesteps;
+    % jsonstruct_ts = struct('TimeStepping', ...
+    %                        struct('totalTime', totalTime, ...
+    %                               'useRampup', true, ...
+    %                               'numberOfTimeSteps', input.numTimesteps, ...
+    %                               'numberOfRampupSteps', 10, ...
+    %                               'timeStepDuration', dt));
+    % jsonstruct = mergeJsonStructs({jsonstruct_ts, jsonstruct});
+
+    % % Setup control
+
+    % output = runBatteryJson(jsonstruct, ...
+    %                         'runSimulation', opt.runSimulation, ...
+    %                         'validateJson', input.validateJson, ...
+    %                         'verbose', opt.verbose);
+
+
+    % return
+
+    % keyboard;
+
     % Convert to battery input parameters
     paramobj = BatteryInputParams(jsonstruct);
     paramobj = setupBatteryGridFromJson(paramobj, jsonstruct);
@@ -82,17 +132,24 @@ function output = runHydra(input, varargin)
 
     % Set volume fractions from mass fractions (could be done by
     % Battery)
-    paramobj = setupVolumeFractions(paramobj, jsonstruct);
+    %paramobj = setupVolumeFractions(paramobj, jsonstruct);
 
     % Validate before building model
     paramobj = paramobj.validateInputParams();
-    model = Battery(paramobj);
+    %model = Battery(paramobj);
+    model = GenericBattery(paramobj);
 
+    %keyboard;
     % Setup nonlinear solver
     jsonstruct_nls = parseBattmoJson(fullfile('Utilities', 'Linearsolvers', 'JsonDataFiles', 'default_direct_linear_solver.json'));
     jsonstruct_nls.verbose = opt.verbose;
+    %jsonstruct_nls.nonlinearTolerance = 1e-3;
     jsonstruct = mergeJsonStructs({jsonstruct_nls, jsonstruct});
     [model, nls, jsonstruct] = setupNonLinearSolverFromJson(model, jsonstruct);
+
+    % model.nonlinearTolerance = 1e-4;
+
+    %nls = NonLinearSolver();
 
     % Basic config
     model.verbose = opt.verbose;
@@ -226,8 +283,11 @@ function paramobj = setupVolumeFractions(paramobj, jsonstruct)
         end
 
         paramobj.(elde).(co).volumeFractions = specVols ./ sum(specVols);
-
+disp(elde)
+        disp(        specVols ./ sum(specVols))
     end
+
+    keyboard;
 
 end
 
