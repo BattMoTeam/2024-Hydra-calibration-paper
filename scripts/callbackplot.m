@@ -32,10 +32,16 @@ function callbackplot(history, it, simulatorSetup, parameters, statesExp, vararg
 
         texp = getTime(statesExp);
         t    = getTime(states);
-        assert(norm(texp-t) < 1e-12);
-
         Eexp = getE(statesExp);
         E    = getE(states);
+
+        % if numel(texp) ~= numel(t)
+        %     assert(abs(texp(1)-t(1)) < 1e-10);
+        %     assert(abs(texp(end)-t(end)) < 1e-10);
+        %     E = interp1(t, E, texp);
+        % end
+
+        assert(norm(texp-t) < 1e-12);
 
         Ediff1 = trapz(texp, abs(Eexp - E));
         Ediff2 = trapz(texp, (Eexp - E).^2);
