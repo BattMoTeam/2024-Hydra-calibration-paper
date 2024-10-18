@@ -32,12 +32,12 @@ classdef HighRateCalibration
 
                 elde = eldes{ielde};
 
-                HRC.stdParams = addParameter(HRC.stdParams, ...
-                                             simulatorSetup, ...
-                                             'name'     , sprintf('%s_vsa', elde), ...
-                                             'belongsTo', 'model'                , ...
-                                             'boxLims'  , [1e4, 1e7]             , ...
-                                             'location' , {elde, co, am, itf, 'volumetricSurfaceArea'});
+                % HRC.stdParams = addParameter(HRC.stdParams, ...
+                %                              simulatorSetup, ...
+                %                              'name'     , sprintf('%s_vsa', elde), ...
+                %                              'belongsTo', 'model'                , ...
+                %                              'boxLims'  , [1e4, 1e7]             , ...
+                %                              'location' , {elde, co, am, itf, 'volumetricSurfaceArea'});
 
                 HRC.stdParams = addParameter(HRC.stdParams, ...
                                              simulatorSetup, ...
@@ -57,6 +57,20 @@ classdef HighRateCalibration
                                              'location', {[{ne, co, 'bruggemanCoefficient'}; ...
                                                            {pe, co, 'bruggemanCoefficient'}]});
 
+            vsa_locs = {[
+                {ne, co, am, itf, 'volumetricSurfaceArea'}; ...
+                %{ne, co, am, sd, 'volumetricSurfaceArea'}; ...
+                {pe, co, am, itf, 'volumetricSurfaceArea'}; ...
+                %{pe, co, am, sd, 'volumetricSurfaceArea'};
+                       ]};
+
+            HRC.customParamsSpec{2} = struct('name', 'eldes_vsa', ...
+                                             'boxLims', [1e4, 1e7], ...
+                                             'scaling', 'linear', ...
+                                             'getfun', @(model, ~) getVSA(model), ...
+                                             'setfun', @(model, ~, v) setVSA(model, v), ...
+                                             'location', vsa_locs);
+
             % Convert spec to ModelParameter instances
             HRC.customParams = cell(numel(HRC.customParamsSpec), 1);
 
@@ -74,40 +88,43 @@ classdef HighRateCalibration
                                                      'setfun', spec.setfun);
             end
 
+            HRC.stdParams = reshape(HRC.stdParams, [], 1);
+            HRC.customParamsSpec = reshape(HRC.customParamsSpec, [], 1);
+            HRC.customParams = reshape(HRC.customParams, [], 1);
+
         end
 
 
         function params = getParams(HRC)
 
-            params = [HRC.stdParams, HRC.customParams];
+            params = [HRC.stdParams; HRC.customParams];
 
         end
 
 
-        function json = export(HRC, setup)
+        function jsonstruct = export(HRC, setup)
 
             % Standard params
-            locs = cellfun(@(p) p.location, HRC.stdParams, 'uniformoutput', false)';
-            vals = cellfun(@(p) p.getParameterValue(setup), HRC.stdParams)';
+            locs_std = cellfun(@(p) p.location, HRC.stdParams, 'uniformoutput', false);
+            vals_std = cellfun(@(p) p.getParameterValue(setup), HRC.stdParams);
 
-            if not(isempty(HRC.customParamsSpec))
-                % Custom params
-                locs2 = cellfun(@(p) p.location, HRC.customParamsSpec, 'uniformoutput', false);
-                vals2 = cellfun(@(p) p.getParameterValue(setup), HRC.customParams, 'uniformoutput', false)';
+            % Custom params
+            locs_custom = cellfun(@(p) p.location, HRC.customParamsSpec, 'uniformoutput', false);
+            vals_custom = cellfun(@(p) p.getParameterValue(setup), HRC.customParams, 'uniformoutput', false);
 
-                locs2 = [locs2{:}];
-                for k = 1:size(locs2, 1)
-                    locs{end+1} = locs2(k,:);
-                end
+            jsonstruct = struct();
 
-                vals = [vals; vals2{:}];
+            for k = 1:numel(locs_std)
+                loc = locs_std{k};
+                jsonstruct = setfield(jsonstruct, loc{:}, vals_std(k));
             end
 
-            json = struct();
-
-            for k = 1:numel(locs)
-                loc = locs{k};
-                json = setfield(json, loc{:}, vals(k));
+            for k = 1:numel(locs_custom)
+                locs = locs_custom{k};
+                vals = vals_custom{k};
+                for i = 1:size(locs, 1)
+                    jsonstruct = setfield(jsonstruct, locs{i,:}, vals(i));
+                end
             end
 
         end
@@ -159,6 +176,58 @@ function model = setBruggeman(model, vals)
 
 end
 
+
+function v = getVSA(model)
+
+    ne  = 'NegativeElectrode';
+    pe  = 'PositiveElectrode';
+    co  = 'Coating';
+    itf = 'Interface';
+    sd  = 'SolidDiffusion';
+    am  = 'ActiveMaterial';
+
+    locs = {
+        {ne, co, am, itf, 'volumetricSurfaceArea'}; ...
+        %{ne, co, am, sd, 'volumetricSurfaceArea'}; ...
+        {pe, co, am, itf, 'volumetricSurfaceArea'}; ...
+        %{pe, co, am, sd, 'volumetricSurfaceArea'}
+           };
+
+    v = nan(numel(locs), 1);
+
+    for k = 1:numel(locs)
+        loc = locs{k};
+        v(k) = getfield(model, loc{:});
+    end
+
+end
+
+
+function model = setVSA(model, vals)
+
+    ne  = 'NegativeElectrode';
+    pe  = 'PositiveElectrode';
+    co  = 'Coating';
+    itf = 'Interface';
+    sd  = 'SolidDiffusion';
+    am  = 'ActiveMaterial';
+
+    locs = {
+        {ne, co, am, itf, 'volumetricSurfaceArea'}; ...
+        {ne, co, am, sd, 'volumetricSurfaceArea'}; ...
+        {pe, co, am, itf, 'volumetricSurfaceArea'}; ...
+        {pe, co, am, sd, 'volumetricSurfaceArea'}
+           };
+
+    vals2 = repmat(vals', 2, 1);
+    vals2 = vals2(:);
+
+    for k = 1:numel(locs)
+        loc = locs{k};
+        model = setfield(model, loc{:}, vals2(k));
+    end
+
+end
 
 %{
 Copyright 2021-2024 SINTEF Industry, Sustainable Energy Technology
