@@ -6,10 +6,15 @@ function callbackplot(history, it, simulatorSetup, parameters, statesExp, vararg
 
     opt = merge_options(opt, varargin{:});
 
+    vals = parameters{1}.getParameter(simulatorSetup);
+
     fprintf('callbackplot it=%g\n', it);
     fprintf('vad %g\n', history.val(end));
     fprintf('u ');
     fprintf('%g ', history.u{end});
+    fprintf('\n');
+    fprintf('vals ');
+    fprintf('%g ', vals);
     fprintf('\n');
     fprintf('pg %g\n', history.pg(end));
 
