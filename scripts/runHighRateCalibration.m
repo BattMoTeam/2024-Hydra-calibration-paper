@@ -128,6 +128,8 @@ if debug
                                        'PerturbationSize', 1e-7, ...
                                        'objScaling', scaling);
     assert(abs(vad - vnum) < eps);
+    assert(all(abs(gad) > 0));
+    assert(all(abs(gnum) > 0));
     assert(norm((gad-gnum)./gnum, 'inf') < 1e-5);
 end
 
