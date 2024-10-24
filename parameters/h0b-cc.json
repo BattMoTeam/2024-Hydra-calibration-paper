@@ -1,0 +1,18 @@
+{
+  "NegativeElectrode": {
+    "CurrentCollector": {
+      "isFile": true,
+      "filename": "ParameterData/MaterialProperties/Copper/copper.json",
+      "thickness": 1e-05,
+      "N": 10
+    }
+  },
+  "PositiveElectrode": {
+    "CurrentCollector": {
+      "isFile": true,
+      "filename": "ParameterData/MaterialProperties/Aluminium/aluminium.json",
+      "thickness": 2e-05,
+      "N": 10
+    }
+  }
+}
