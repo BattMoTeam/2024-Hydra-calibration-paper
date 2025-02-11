@@ -43,6 +43,9 @@ function output = runHydra(input, varargin)
     % Load base json
     jsonstruct = parseBattmoJson(fullfile(getHydra0Dir(), 'parameters', 'h0b-base.json'));
 
+    jsonstruct.use_thermal = false;
+    jsonstruct.include_current_collectors = false;
+
     % Set low rate params
     if not(isempty(input.lowRateParams))
         jsonstruct_low_rate_params = input.lowRateParams;
