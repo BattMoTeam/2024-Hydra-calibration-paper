@@ -1,0 +1,28 @@
+{
+    "@context": "https://w3id.org/emmo/domain/battery/context",
+    "@graph": [
+        {
+            "@type": "BatteryCell",
+            "hasPositiveElectrode": {
+                "@type": "Electrode",
+                "hasCoating": {
+                    "@type": "Coating",
+                    "hasActiveMaterial": {
+                        "@type": "LithiumNickelManganeseOxide",
+                        "hasProperty": [
+                            {
+                                "@type": "D50ParticleSize"
+                            },
+                            {
+                                "@type": "PositiveElectrodeActiveMaterialOpenCircuitVoltage"
+                            },
+                            {
+                                "@type": "LithiumDiffusivityInPositiveElectrode"
+                            }
+                        ]
+                    }
+                }
+            }
+        }
+    ]
+}
