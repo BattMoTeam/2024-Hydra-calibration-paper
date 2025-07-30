@@ -1,0 +1,73 @@
+function [OCP, dUdT] = computeOCPanodeH0b(c, ~, cmax)
+
+    graphite_ds = [
+        0                   1.501954065265600
+        0.009009009009009   0.810231488586984
+        0.012012012012012   0.686487465213566
+        0.016016016016016   0.595186217482807
+        0.024024024024024   0.478937054398693
+        0.029029029029029   0.427100952578674
+        0.036036036036036   0.369161427160260
+        0.043043043043043   0.322705563214132
+        0.051051051051051   0.279370834430757
+        0.058058058058058   0.249277174943395
+        0.064064064064064   0.234597424467763
+        0.070070070070070   0.228649431723394
+        0.079079079079079   0.224835429526173
+        0.122122122122122   0.217588825351454
+        0.144144144144144   0.199853715134376
+        0.161161161161161   0.190509409751185
+        0.177177177177177   0.180020903708828
+        0.190190190190190   0.173346399863691
+        0.247247247247247   0.152750787998698
+        0.268268268268268   0.147039415239939
+        0.302302302302302   0.139783180528147
+        0.327327327327327   0.137494779209814
+        0.362362362362362   0.135969178330926
+        0.473473473473474   0.133280922470175
+        0.512512512512513   0.130248175035095
+        0.525525525525526   0.127578373497040
+        0.538538538538539   0.123001570860375
+        0.561561561561562   0.110415363609546
+        0.574574574574575   0.105075760533436
+        0.593593593593594   0.100880358116493
+        0.612612612612613   0.098782656908022
+        0.641641641641642   0.097066355919272
+        0.709709709709710   0.095159354820662
+        0.884884884884885   0.092108153062885
+        0.917917917917918   0.090578827053948
+        0.942942942942943   0.087149950206498
+        0.959959959959960   0.081397694713802
+        0.969969969969970   0.075326543395113
+        0.977977977977978   0.067698539000671
+        0.983983983983984   0.059117034056924
+        0.988988988988989   0.049414771850420
+        1.000000000000000   0.017163082765764
+                  ];
+
+    stoc = c/cmax;
+    OCP = interpTable(graphite_ds(:,1), graphite_ds(:,2), stoc);
+    dUdT = 0;
+
+end
+
+
+%{
+Copyright 2021-2024 SINTEF Industry, Sustainable Energy Technology
+and SINTEF Digital, Mathematics & Cybernetics.
+
+This file is part of The Battery Modeling Toolbox BattMo
+
+BattMo is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+BattMo is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with BattMo.  If not, see <http://www.gnu.org/licenses/>.
+%}
