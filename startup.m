@@ -26,7 +26,6 @@ function startup()
     end
 
     cd(battmo);
-    syscall('git checkout dev');
     run('startupBattMo.m')
     cd(cwdir);
 
