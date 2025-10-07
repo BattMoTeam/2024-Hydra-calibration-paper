@@ -78,7 +78,6 @@
         "massFraction": 0.96
       },
       "bruggemanCoefficient": 3.46,
-      "effectiveDensity": 2250,
       "electronicConductivity": 215,
       "volumeFraction": 0.61,
       "Binder": {
@@ -125,7 +124,6 @@
         "massFraction": 0.92
       },
       "bruggemanCoefficient": 3,
-      "effectiveDensity": 4200,
       "electronicConductivity": 0.25,
       "volumeFraction": 0.66,
       "Binder": {
