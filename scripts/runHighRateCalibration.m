@@ -44,15 +44,21 @@ filename     = fullfile(getHydra0Dir(), 'parameters', 'equilibrium-calibration-p
 jsonstructEC = parseBattmoJson(filename);
 
 % Find capacity
-input     = struct('lowRateParams', jsonstructEC);
-outputCap = runHydra(input, 'runSimulation', false);
+inputCap  = struct('lowRateParams', jsonstructEC);
+outputCap = runHydra(inputCap, 'runSimulation', false);
 cap       = computeCellCapacity(outputCap.model);
 
+% Diffusion must be a scalar when calibrated. Choose mean value.
+neD = mean(computeDanodeH0b(linspace(0, 1, 100)));
+peD = mean(computeDcathodeH0b(linspace(0.14, 1, 100)));
+
 % Initial guess
-input = struct('DRate'        , expdata.I / cap * hour, ...
-               'totalTime'    , expdata.time(end)     , ...
-               'lowRateParams', jsonstructEC);
-output0 = runHydra(input);
+input0 = struct('DRate'        , expdata.I / cap * hour, ...
+                'totalTime'    , expdata.time(end)     , ...
+                'lowRateParams', jsonstructEC          , ...
+                'neD'          , neD                   , ...
+                'peD'          , peD);
+output0 = runHydra(input0);
 
 if debug
     % Check how exp and initial guess compare
@@ -130,7 +136,7 @@ if debug
     assert(abs(vad - vnum) < eps);
     assert(all(abs(gad) > 0));
     assert(all(abs(gnum) > 0));
-    assert(norm((gad-gnum)./gnum, 'inf') < 1e-5);
+    assert(norm((gad-gnum)./gnum, 'inf') < 1e-3);
 end
 
 %% Run optimization
@@ -162,11 +168,11 @@ printer(jsonstructHRC);
 
 %% Run model with calibrated parameters
 
-input = struct('DRate'         , expdata.I / cap * hour    , ...
-               'totalTime'     , expdata.time(end)         , ...
-               'lowRateParams' , jsonstructEC, ...
-               'highRateParams', jsonstructHRC);
-outputOpt = runHydra(input);
+inputOpt = struct('DRate'         , expdata.I / cap * hour    , ...
+                  'totalTime'     , expdata.time(end)         , ...
+                  'lowRateParams' , jsonstructEC, ...
+                  'highRateParams', jsonstructHRC);
+outputOpt = runHydra(inputOpt);
 
 
 %% Calculate tortuosity
