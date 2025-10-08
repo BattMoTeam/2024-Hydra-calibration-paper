@@ -37,7 +37,7 @@ function callbackplot(history, it, simulatorSetup, parameters, statesExp, vararg
 
         texp = getTime(statesExp);
         t    = getTime(states);
-        assert(norm(texp-t) < 1e-12);
+        assert(norm(texp-t, 'inf') < 1e-12);
 
         Eexp = getE(statesExp);
         E    = getE(states);
