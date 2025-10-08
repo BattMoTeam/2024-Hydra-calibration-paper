@@ -40,7 +40,8 @@ input     = struct('lowRateParams', jsonstructEC);
 outputCap = runHydra(input, 'runSimulation', false);
 cap       = computeCellCapacity(outputCap.model);
 
-fig = figure; hold on;
+fig = figure('Units', 'inches', 'Position', [0.1, 0.1, 8, 6]);
+hold on;
 colors = lines(numel(dataraw.time));
 expname = @(c) sprintf('exp %1.2g C', c);
 p2dname = @(c) sprintf('P2D %1.2g C', c);
@@ -69,8 +70,8 @@ for k = 1:numel(dataraw.time)
 
 end
 
-xlabel('capacity / Ah')
-ylabel('voltage / V')
+xlabel('C  /  Ah')
+ylabel('E  /  V')
 axis tight
 ylim([3.45, 4.9])
 

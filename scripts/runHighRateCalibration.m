@@ -184,20 +184,20 @@ disp(tau);
 %% Plot
 
 colors = lines(2);
-fig = figure;
+fig = figure('Units', 'inches', 'Position', [0.1, 0.1, 8, 6]);
 hold on;
-plot(expdata.time/hour, expdata.U, 'k--', 'displayname', 'experiment 2 C');
-plot(getTime(output0.states)/hour, getE(output0.states), 'color', colors(1,:), 'displayname', 'initial guess')
-plot(getTime(outputOpt.states)/hour, getE(outputOpt.states), 'color', colors(2,:), 'displayname', 'calibrated');
-xlabel('time / h')
-ylabel('voltage / V')
+plot(expdata.time/hour, expdata.U, 'k--', 'displayname', 'Experiment 2 C');
+plot(getTime(output0.states)/hour, getE(output0.states), 'color', colors(1,:), 'displayname', 'Initial guess')
+plot(getTime(outputOpt.states)/hour, getE(outputOpt.states), 'color', colors(2,:), 'displayname', 'Calibrated');
+xlabel('Time / h')
+ylabel('E  /  V')
 legend('location', 'sw')
 axis tight
 ylim([3.45, 4.9])
 
 dosave = false;
 if dosave
-    exportgraphics(fig, 'high-rate-calibration.png', 'resolution', 300)
+    exportgraphics(fig, sprintf('high-rate-calibration-%g-%g.png', neD, peD), 'resolution', 300)
 end
 
 

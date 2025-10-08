@@ -97,22 +97,22 @@ outputOpt = runHydra(input, 'clearSimulation', false);
 %% Plot
 
 colors = lines(4);
-fig = figure;
+fig = figure('Units', 'inches', 'Position', [0.1, 0.1, 8, 6]);
 hold on
-plot(expdata.time/hour, expdata.E, 'k--', 'displayname', 'experiment 0.05 C');
-plot(expdata.time/hour, fcomp(expdata.time, X0), 'color', colors(3,:), 'displayname', 'EA initial guess');
-plot(expdata.time/hour, fcomp(expdata.time, Xopt), 'color', colors(4,:), 'displayname', 'EA calibrated guess');
-plot(getTime(output0.states)/hour, getE(output0.states), 'color', colors(1,:), 'displayname', 'initial guess');
-plot(getTime(outputOpt.states)/hour, getE(outputOpt.states), 'color', colors(2,:), 'displayname', 'calibrated');
-xlabel 'time / h';
-ylabel 'cell voltage / V';
+plot(expdata.time/hour, expdata.E, 'k--', 'displayname', 'Experiment 0.05 C');
+plot(expdata.time/hour, fcomp(expdata.time, X0), 'color', colors(3,:), 'displayname', 'Initial data');
+plot(expdata.time/hour, fcomp(expdata.time, Xopt), 'color', colors(4,:), 'displayname', 'After cell balancing');
+%plot(getTime(output0.states)/hour, getE(output0.states), 'color', colors(1,:), 'displayname', 'P2D initial guess');
+plot(getTime(outputOpt.states)/hour, getE(outputOpt.states), 'color', colors(2,:), 'displayname', 'P2D after cell balancing');
+xlabel 'Time  /  h';
+ylabel 'E  /  V';
 legend('location', 'sw')
 axis tight
 ylim([3.45, 4.9])
 
 dosave = false;
 if dosave
-    exportgraphics(fig, 'equilibriumcalibration.png', 'resolution', 300);
+    exportgraphics(fig, 'cell-balancing.png', 'resolution', 300);
 end
 
 
