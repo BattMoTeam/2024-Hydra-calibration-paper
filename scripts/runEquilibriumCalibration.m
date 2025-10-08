@@ -46,7 +46,7 @@ expdata = struct('time' , datasmooth.time{1} * hour                           , 
 
 input = struct('DRate'    , expdata.DRate, ...
                'totalTime', expdata.time(end));
-output0 = runHydra(input);
+output0 = runHydra(input, 'clearSimulation', false);
 
 %% Setup and run optimization
 

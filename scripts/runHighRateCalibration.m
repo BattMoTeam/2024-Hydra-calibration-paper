@@ -48,9 +48,11 @@ inputCap  = struct('lowRateParams', jsonstructEC);
 outputCap = runHydra(inputCap, 'runSimulation', false);
 cap       = computeCellCapacity(outputCap.model);
 
-% Diffusion must be a scalar when calibrated. Choose mean value.
-neD = mean(computeDanodeH0b(linspace(0, 1, 100)));
-peD = mean(computeDcathodeH0b(linspace(0.14, 1, 100)));
+% Diffusion must be a scalar when calibrated
+% neD = mean(computeDanodeH0b(linspace(0, 1, 100)));
+% peD = mean(computeDcathodeH0b(linspace(0.14, 1, 100)));
+neD = 1e-14;
+peD = 1e-14;
 
 % Initial guess
 input0 = struct('DRate'        , expdata.I / cap * hour, ...
