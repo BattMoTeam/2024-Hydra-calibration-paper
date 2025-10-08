@@ -1,11 +1,14 @@
 function output = runHydra(input, varargin)
 
     % Input parameters
-    input_default = struct('DRate'         , []  , ...
-                           'totalTime'     , []  , ...
-                           'numTimesteps'  , 100 , ...
-                           'lowRateParams' , []  , ...
-                           'highRateParams', []);
+    input_default = struct('DRate'          , []   , ...
+                           'totalTime'      , []   , ...
+                           'numTimesteps'   , 100  , ...
+                           'lowRateParams'  , []   , ...
+                           'highRateParams' , []   , ...
+                           'useExpDiffusion', false, ...
+                           'neD'            , []   , ...
+                           'peD'            , []);
 
     if not(isempty(input))
         fds = fieldnames(input);
@@ -43,8 +46,44 @@ function output = runHydra(input, varargin)
     % Load base json
     jsonstruct = parseBattmoJson(fullfile(getHydra0Dir(), 'parameters', 'h0b-base.json'));
 
-    jsonstruct.use_thermal = false;
-    jsonstruct.include_current_collectors = false;
+    % Use experimental diffusion if requested
+    if input.useExpDiffusion
+        assert(isempty(input.highRateParams), ...
+               'Should not use experimental diffusion and high rate params simultaneously');
+
+        eldes = {ne, pe};
+        for ielde = 1:numel(eldes)
+            elde = eldes{ielde};
+
+            % Remove existing diffusion params
+            assert(isfield(jsonstruct.(elde).(co).(am).(sd), 'referenceDiffusionCoefficient'), ...
+                   'Expected diffusion parameters to be present in the base json');
+            jsonstruct.(elde).(co).(am).(sd) = rmfield(jsonstruct.(elde).(co).(am).(sd), 'referenceDiffusionCoefficient');
+
+            % Add experimental diffusion params
+            switch elde
+              case ne
+                functionname = 'computeDanodeH0b';
+              case pe
+                functionname = 'computeDcathodeH0b';
+              otherwise
+                error('Unexpected electrode %s', elde);
+            end
+            jsonstruct_diffusion = struct('type', 'function', ...
+                                          'functionname', functionname, ...
+                                          'argumentlist', 'soc');
+            jsonstruct.(elde).(co).(am).(sd).diffusionCoefficient = jsonstruct_diffusion;
+        end
+    end
+
+    % Set input diffusion
+    if not(isempty(input.neD))
+        jsonstruct.(ne).(co).(am).(sd).referenceDiffusionCoefficient = input.neD;
+    end
+
+    if not(isempty(input.peD))
+        jsonstruct.(pe).(co).(am).(sd).referenceDiffusionCoefficient = input.peD;
+    end
 
     % Set low rate params
     if not(isempty(input.lowRateParams))
@@ -63,7 +102,7 @@ function output = runHydra(input, varargin)
     jsonstruct = mergeJsonStructs({jsonstruct_geom, jsonstruct});
 
     % Validate json (requires python)
-    if input.validateJson
+    if opt.validateJson
         validateJsonStruct(jsonstruct);
     end
 
