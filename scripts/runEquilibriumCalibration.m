@@ -37,7 +37,7 @@ dataraw      = saveddata.experiment;
 
 % Pack data with lowest rate (first item)
 expdata = struct('time' , datasmooth.time{1} * hour                           , ...
-                 'E'    , datasmooth.voltage{1}                               , ...
+                 'U'    , datasmooth.voltage{1}                               , ...
                  'cap'  , abs(trapz(dataraw.time{1}*hour, dataraw.current{1})), ...
                  'I'    , abs(mean(dataraw.current{1}))                       , ...
                  'DRate', datasmooth.crate{1});
@@ -47,26 +47,29 @@ expdata = struct('time' , datasmooth.time{1} * hour                           , 
 input = struct('DRate'    , expdata.DRate, ...
                'totalTime', expdata.time(end));
 output0 = runHydra(input, 'clearSimulation', false);
+css0 = CellSpecificationSummary(output0.model);
 
 %% Setup and run optimization
 
-EC = EquilibriumCalibration(output0.model, expdata);
-[fexp, fcomp] = EC.setupFunctions();
+ecs = EquilibriumCalibrationSetup(output0.model, expdata);
+ecs = ecs.setupCalibrationCase(1, 'np_ratio', css0.NPratio);
 
-X0 = EC.getDefaultValue();
-objective = @(X) EC.objective(X);
-v0 = objective(X0);
+doipopt = false;
 
-linIneq.A = -eye(4);
-linIneq.b = -0.01*ones(4, 1);
+if doipopt
+    ipoptOptions = struct('print_level', 5, ...
+                          'tol', 1e-5);
+    [Xopt, info] = ecs.runIpOpt(ipoptOptions);
+    iter = info.iter;
+else
+    [Xopt, history] = ecs.runUnitBoxBFGS();
+    iter = numel(history.val);
+end
 
-[~, Xopt, history] = unitBoxBFGS(X0, objective, ...
-                                 'maximize'    , false  , ...
-                                 'linIneq'     , linIneq, ...
-                                 'objChangeTol', 1e-11  , ...
-                                 'maxit'       , 100    , ...
-                                 'logPlot'     , true);
-vopt = objective(Xopt);
+X0 = ecs.X0;
+v0 = ecs.objective(X0);
+vopt = ecs.objective(Xopt);
+[fexp, fcomp] = ecs.setupfunction();
 
 %% Print
 
@@ -78,11 +81,13 @@ for e = 1:2
     fprintf('alpha    \t %1.5f \t %1.5f\n', X0(2*e), Xopt(2*e));
 end
 
-fprintf('obj val=%1.2f (%1.2f), iter=%d\n', vopt, v0, numel(history.val));
+fprintf('obj val=%1.2f (%1.2f), iter=%d\n', vopt, v0, iter);
 
 %% Extract parameters
 
-jsonstructEC = EC.extractAlpha(output0.model, Xopt);
+%jsonstructEC = EC.extractAlpha(output0.model, Xopt);
+ecs.totalAmountVariableChoice = 'volumeFraction';
+jsonstructEC = ecs.exportParameters(Xopt);
 filename = fullfile(getHydra0Dir(), 'parameters', 'equilibrium-calibration-parameters.json');
 writeJsonStruct(jsonstructEC, filename);
 printer(jsonstructEC);
@@ -93,13 +98,15 @@ input = struct('DRate'        , expdata.I * hour / expdata.cap, ...
                'totalTime'    , expdata.time(end)             , ...
                'lowRateParams', jsonstructEC);
 outputOpt = runHydra(input, 'clearSimulation', false);
+cssOpt = CellSpecificationSummary(outputOpt.model);
+fprintf('NPratio after calibration: %g\n', cssOpt.NPratio);
 
 %% Plot
 
 colors = lines(4);
 fig = figure('Units', 'inches', 'Position', [0.1, 0.1, 8, 6]);
 hold on
-plot(expdata.time/hour, expdata.E, 'k--', 'displayname', 'Experiment 0.05 C');
+plot(expdata.time/hour, expdata.U, 'k--', 'displayname', 'Experiment 0.05 C');
 plot(expdata.time/hour, fcomp(expdata.time, X0), 'color', colors(3,:), 'displayname', 'Initial data');
 plot(expdata.time/hour, fcomp(expdata.time, Xopt), 'color', colors(4,:), 'displayname', 'After cell balancing');
 %plot(getTime(output0.states)/hour, getE(output0.states), 'color', colors(1,:), 'displayname', 'P2D initial guess');
