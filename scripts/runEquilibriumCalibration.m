@@ -1,4 +1,4 @@
-% Script to calibrate parameters under equilibrium assumptions
+%% Script to calibrate parameters under equilibrium assumptions
 
 clear all
 close all
@@ -92,7 +92,7 @@ printer(jsonstructEC);
 input = struct('DRate'        , expdata.I * hour / expdata.cap, ...
                'totalTime'    , expdata.time(end)             , ...
                'lowRateParams', jsonstructEC);
-outputOpt = runHydra(input);
+outputOpt = runHydra(input, 'clearSimulation', false);
 
 %% Plot
 
