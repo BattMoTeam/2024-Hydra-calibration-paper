@@ -501,6 +501,20 @@ classdef EquilibriumCalibrationSetup2222
 
             f = fpe - fne;
 
+            % % debug
+            % figure(99);
+            % subplot(1,2,1);
+            % hold on; grid on; title('NE')
+            % plot(thetane, fne);
+            % subplot(1,2,2);
+            % hold on; grid on; title('PE')
+            % plot(thetape, fpe);
+            % drawnow
+
+            fprintf('minmax theta NE : %g %g\n', min(value(thetane)), max(value(thetane)));
+            fprintf('minmax theta PE : %g %g\n', min(value(thetape)), max(value(thetape)));
+            fprintf('\n');
+
         end
 
 
@@ -858,7 +872,9 @@ classdef EquilibriumCalibrationSetup2222
 
         function [Xopt, hist] = runUnitBoxBFGS(ecs, varargin)
 
-            opt = struct('X0', ecs.X0);
+            opt = struct('X0', ecs.X0, ...
+                         'plotEvolution', true, ...
+                         'callbackfunc', []);
             [opt, extra] = merge_options(opt, varargin{:});
 
             f = @(X) ecs.objective(X);

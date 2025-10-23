@@ -3,6 +3,8 @@
 clear all
 close all
 
+diary(sprintf('diary-%s.txt', datestr(now, 'yyyymmdd-HHMMSS')));
+
 mrstDebug(0);
 
 set(0, 'defaultlinelinewidth', 2)
@@ -60,7 +62,7 @@ if doipopt
     [Xopt, info] = ecs.runIpOpt(ipoptOptions);
     iter = info.iter;
 else
-    [Xopt, history] = ecs.runUnitBoxBFGS();
+    [Xopt, history] = ecs.runUnitBoxBFGS('plotEvolution', false);
     iter = numel(history.val);
 end
 
@@ -102,7 +104,7 @@ fprintf('NPratio after calibration: %g\n', cssOpt.NPratio);
 %% Plot
 
 colors = lines(4);
-fig = figure('Units', 'inches', 'Position', [0.1, 0.1, 8, 6]);
+fig = figure%;('Units', 'inches', 'Position', [0.1, 0.1, 8, 6]);
 hold on
 plot(expdata.time/hour, expdata.U, 'k--', 'displayname', 'Experiment 0.05 C');
 plot(expdata.time/hour, fcomp(expdata.time, X0), 'color', colors(3,:), 'displayname', 'Initial data');
@@ -222,52 +224,79 @@ t0 = linspace(ta, tb, numel(t));
 t0 = t;
 
 [~, fpeInit, ~, thetaPEinit] = ecs.computeF(t0, X0);
-[~, fpe, ~, thetape, ~] = ecs.computeF(t, Xopt);
+[~, fpeOpt, ~, thetaPEopt, ~] = ecs.computeF(t, Xopt);
 
 figure; hold on; grid on
 
-% 1. Plot initial OCPs
-plot(thetaPEinit, fpeInit, 'displayname', 'PE init', 'color', colors(1,:), 'linestyle', '--', 'displayname', 'PE OCP(thetaPEinit)');
-
-% include start and end points
-plot(thetaPEinit(1), fpeInit(1), 'o', 'color', colors(1,:), 'handlevisibility', 'off');
-plot(thetaPEinit(end), fpeInit(end), 'x', 'color', colors(1,:), 'handlevisibility', 'off');
+% 0. Plot original OCPs from xlsx
+guestStoichiometry0 = jsonInit.(pe).(co).(am).(itf).guestStoichiometry0;
+guestStoichiometry100 = jsonInit.(pe).(co).(am).(itf).guestStoichiometry100;
+x = linspace(guestStoichiometry0, guestStoichiometry100, 100);
+y = computeOCPcathodeH0b(x, [], 1);
+plot(x, y, 'displayname', sprintf('PE xlsx (%g, %g)', min(x), max(x)), 'color', 'k', 'linestyle', ':', 'linewidth', 1)
 
 % include guest stoichiometries start and end
-theta0 = jsonInit.(pe).(co).(am).(itf).guestStoichiometry0;
-theta100 = jsonInit.(pe).(co).(am).(itf).guestStoichiometry100;
-line([theta0, theta0], [4, 5], 'color', colors(1,:), style{:});
-line([theta100, theta100], [4, 5], 'color', colors(1,:), style{:});
-text(theta0, 4.1, 'PE theta0 init', 'color', colors(1,:), left{:});
-text(theta100, 4.1, 'PE theta100 init', 'color', colors(1,:), left{:});
+guestStoichiometry0 = jsonInit.(pe).(co).(am).(itf).guestStoichiometry0;
+guestStoichiometry100 = jsonInit.(pe).(co).(am).(itf).guestStoichiometry100;
+line([guestStoichiometry0, guestStoichiometry0], [2.9, 5], 'color', 'k', style{:});
+line([guestStoichiometry100, guestStoichiometry100], [2.9, 5], 'color', 'k', style{:});
+text(guestStoichiometry0, 4.1, sprintf('PE guestStoichiometry0 init=%g', guestStoichiometry0), 'color', 'k', left{:});
+text(guestStoichiometry100, 4.1, sprintf('PE guestStoichiometry100 init=%g', guestStoichiometry100), 'color', 'k', left{:});
 
-% Comments: the theta pe end points doesn't match PE theta(end)
-fprintf('PE theta100 init from jsonInit: %g\n', theta100);
-fprintf('PE theta100 from initial sim: %g\n', thetaPEinit(end));
+% 1. Plot initial OCPs in ecs class
+color = colors(1,:);
+plot(thetaPEinit, fpeInit, 'color', color, 'linestyle', '--', 'displayname',sprintf('PE OCP init (%g, %g)', thetaPEinit(1), thetaPEinit(end)));
+
+% include start and end points
+plot(thetaPEinit(1), fpeInit(1), 'o', 'color', color, 'handlevisibility', 'off');
+plot(thetaPEinit(end), fpeInit(end), 'x', 'color', color, 'handlevisibility', 'off');
+line([thetaPEinit(1), thetaPEinit(1)], [2.9, 5], 'color', color, style{:});
+line([thetaPEinit(end), thetaPEinit(end)], [2.9, 5], 'color', color, style{:});
+% text(thetaPEinit(1), 3.5, sprintf('PE thetaPEinit(1)=%g', thetaPEinit(1)), 'color', color, left{:});
+% text(thetaPEinit(end), 3.5, sprintf('PE thetaPEinit(end)=%g', thetaPEinit(end)), 'color', color, right{:});
+
+
+fprintf('PE guestStoichiometry0 and guestStoichiometry100 from JsonInit: %1.5f\t %1.5f\n', guestStoichiometry0, guestStoichiometry100);
+fprintf('PE guestStoichiometry0 and guestStoichiometry100 from computeF: %1.5f\t %1.5f\n', thetaPEinit(end), thetaPEinit(1));
 
 xlim([-0.1, 1.1]);
-ylim([4, 5]);
+ylim([2.9, 5]);
 
 xlabel 'Stoichiometry \theta  /  -';
-title('PE cell balancing vs "lithiation"')
+title('PE OCP vs stoichiometry');
 legend;
 
 return
 
-%% 2. Plot calibrated OCPs (PE)
-plot(thetape, fpe, 'displayname', 'PE opt', 'color', colors(3,:), 'linestyle', ':');
+%% 2a. Plot calibrated OCPs (PE)
+
+% is it like this? or like 2b?
+
+plot(thetaPEopt, fpeOpt, 'displayname', sprintf('PE OCP opt (%g, %g)', thetaPEopt(1), thetaPEopt(end)), 'color', colors(2,:), 'linestyle', ':');
 
 % include start and end points
-plot(thetape(1), fpe(1), 'o', 'color', colors(3,:), 'handlevisibility', 'off');
-plot(thetape(end), fpe(end), 'x', 'color', colors(3,:), 'handlevisibility', 'off');
+color = colors(2,:);
+plot(thetaPEopt(1), fpeOpt(1), 'o', 'color', color, 'handlevisibility', 'off');
+plot(thetaPEopt(end), fpeOpt(end), 'x', 'color', color, 'handlevisibility', 'off');
 
 % include guest stoichiometries start and end
-theta0 = jsonOpt.(pe).(co).(am).(itf).guestStoichiometry0;
-theta100 = jsonOpt.(pe).(co).(am).(itf).guestStoichiometry100;
-line([theta0, theta0], [4, 5], 'color', colors(3,:), style{:});
-line([theta100, theta100], [4, 5], 'color', colors(3,:), style{:});
-text(theta0, 4.5, 'PE theta0 opt', 'color', colors(3,:), right{:});
-text(theta100, 4.5, 'PE theta100 opt', 'color', colors(3,:), right{:});
+guestStoichiometry0 = jsonOpt.(pe).(co).(am).(itf).guestStoichiometry0;
+guestStoichiometry100 = jsonOpt.(pe).(co).(am).(itf).guestStoichiometry100;
+plot(guestStoichiometry0, fpeOpt(1), '.', 'markersize', 12, 'color', color, 'displayname', sprintf('PE guestStoichiometry0 opt=%g', guestStoichiometry0));
+line([guestStoichiometry0, guestStoichiometry0], [4, 5], 'color', color, style{:}, 'handlevisibility', 'off');
+line([guestStoichiometry100, guestStoichiometry100], [4, 5], 'color', color, style{:});
+text(guestStoichiometry0, 4.5, sprintf('PE guestStoichiometry0 opt=%g', guestStoichiometry0), 'color', color, right{:});
+text(guestStoichiometry100, 4.5, sprintf('PE guestStoichiometry100 opt=%g', guestStoichiometry100), 'color', color, right{:});
+
+fprintf('At optimum\n');
+fprintf('guestStoichiometry0: %1.5f\n', guestStoichiometry0);
+fprintf('guestStoichiometry100: %1.5f\n', guestStoichiometry100);
+fprintf('thetaPEopt(1): %1.5f\n', thetaPEopt(1));
+fprintf('thetaPEopt(end): %1.5f\n', thetaPEopt(end));
+
+%% 2b. Plot calibrated OCPs with stretch (PE)
+
+
 
 
 
@@ -304,19 +333,19 @@ t0 = t;
 figure; hold on; grid on
 
 % 1. Plot initial OCPs
-plot(thetaNEinit, fneInit, 'displayname', 'NE init', 'color', colors(2,:), 'linestyle', '--');
+plot(thetaNEinit, fneInit, 'displayname', 'NE init', 'color', colors(3,:), 'linestyle', '--');
 
 % include start and end points
-plot(thetaNEinit(1), fneInit(1), 'o', 'color', colors(2,:), 'handlevisibility', 'off');
-plot(thetaNEinit(end), fneInit(end), 'x', 'color', colors(2,:), 'handlevisibility', 'off');
+plot(thetaNEinit(1), fneInit(1), 'o', 'color', colors(3,:), 'handlevisibility', 'off');
+plot(thetaNEinit(end), fneInit(end), 'x', 'color', colors(3,:), 'handlevisibility', 'off');
 
 % include guest stoichiometries start and end
-theta0 = jsonInit.(ne).(co).(am).(itf).guestStoichiometry0;
-theta100 = jsonInit.(ne).(co).(am).(itf).guestStoichiometry100;
-line([theta0, theta0], [0, 1], 'color', colors(2,:), style{:});
-line([theta100, theta100], [0, 1], 'color', colors(2,:), style{:});
-text(theta0, 0.75, 'NE theta0 init', 'color', colors(2,:), left{:});
-text(theta100, 0.75, 'NE theta100 init', 'color', colors(2,:), left{:});
+guestStoichiometry0 = jsonInit.(ne).(co).(am).(itf).guestStoichiometry0;
+guestStoichiometry100 = jsonInit.(ne).(co).(am).(itf).guestStoichiometry100;
+line([guestStoichiometry0, guestStoichiometry0], [0, 1], 'color', colors(3,:), style{:});
+line([guestStoichiometry100, guestStoichiometry100], [0, 1], 'color', colors(3,:), style{:});
+text(guestStoichiometry0, 0.75, 'NE guestStoichiometry0 init', 'color', colors(3,:), left{:});
+text(guestStoichiometry100, 0.75, 'NE guestStoichiometry100 init', 'color', colors(3,:), left{:});
 
 xlim([-0.3, 1.1]);
 ylim([0, 1]);
@@ -338,13 +367,13 @@ plot(thetaNEopt(1), fneOpt(1), 'o', 'color', colors(4,:), 'handlevisibility', 'o
 plot(thetaNEopt(end), fneOpt(end), 'x', 'color', colors(4,:), 'handlevisibility', 'off');
 
 % include guest stoichiometries start and end
-theta0 = valsNotTruncated.(ne).guestStoichiometry0;
-%theta0 = jsonOpt.(ne).(co).(am).(itf).guestStoichiometry0;
-theta100 = jsonOpt.(ne).(co).(am).(itf).guestStoichiometry100;
-line([theta0, theta0], [0, 1], 'color', colors(4,:), style{:});
-line([theta100, theta100], [0, 1], 'color', colors(4,:), style{:});
-text(theta0, 0.75, 'NE theta0 opt', 'color', colors(4,:), right{:});
-text(theta100, 0.75, 'NE theta100 opt', 'color', colors(4,:), right{:});
+guestStoichiometry0 = valsNotTruncated.(ne).guestStoichiometry0;
+%guestStoichiometry0 = jsonOpt.(ne).(co).(am).(itf).guestStoichiometry0;
+guestStoichiometry100 = jsonOpt.(ne).(co).(am).(itf).guestStoichiometry100;
+line([guestStoichiometry0, guestStoichiometry0], [0, 1], 'color', colors(4,:), style{:});
+line([guestStoichiometry100, guestStoichiometry100], [0, 1], 'color', colors(4,:), style{:});
+text(guestStoichiometry0, 0.75, 'NE guestStoichiometry0 opt', 'color', colors(4,:), right{:});
+text(guestStoichiometry100, 0.75, 'NE guestStoichiometry100 opt', 'color', colors(4,:), right{:});
 
 
 
