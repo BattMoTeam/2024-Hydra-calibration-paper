@@ -3,8 +3,6 @@
 clear all
 close all
 
-mrstModule add ad-core optimization mpfa
-
 mrstDebug(0);
 
 set(0, 'defaultlinelinewidth', 2)
