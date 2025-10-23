@@ -29,6 +29,9 @@ function startup()
     run('startupBattMo.m')
     cd(cwdir);
 
+    mrstModule add ad-core optimization mpfa
+
+
     fprintf('\nCurrent directory: %s\n\n', pwd());
 
 end
