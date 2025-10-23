@@ -49,7 +49,7 @@ css0 = CellSpecificationSummary(output0.model);
 
 %% Setup and run optimization
 
-ecs = EquilibriumCalibrationSetup(output0.model, expdata);
+ecs = EquilibriumCalibrationSetup2222(output0.model, expdata);
 ecs = ecs.setupCalibrationCase(1, 'np_ratio', css0.NPratio);
 
 doipopt = false;
