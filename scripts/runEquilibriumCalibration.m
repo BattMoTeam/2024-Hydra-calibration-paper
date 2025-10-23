@@ -121,6 +121,554 @@ if dosave
 end
 
 
+%% Plot cell balancing time domain
+
+t = expdata.time;
+
+[~, fpe0, fne0, thetape0, thetane0] = ecs.computeF(t, X0);
+ocp0 = fpe0 - fne0;
+[~, fpe, fne, thetape, thetane] = ecs.computeF(t, Xopt);
+ocp = fpe - fne;
+
+figure; hold on; grid on
+plot(expdata.time/hour, expdata.U, 'k--', 'displayname', 'Experiment 0.05 C');
+plot(t/hour, fpe0, 'displayname', 'pe init', 'color', colors(1,:), 'linestyle', '--');
+plot(t/hour, fne0, 'displayname', 'ne init', 'color', colors(2,:), 'linestyle', '--');
+plot(t/hour, ocp0, 'displayname', 'ocp init', 'color', colors(3,:), 'linestyle', '--');
+plot(t/hour, fpe, 'displayname', 'pe opt', 'color', colors(1,:));
+plot(t/hour, fne, 'displayname', 'ne opt', 'color', colors(2,:));
+plot(t/hour, ocp, 'displayname', 'ocp opt', 'color', colors(3,:));
+
+xlabel 'Time  /  h';
+ylabel 'Voltage  /  V';
+legend('location', 'sw')
+
+title('Cell balancing in time domain');
+
+%% plot cell balancing capacity domain: only scale x axis by current
+
+t = expdata.time;
+
+% extend time 20% before and after
+factor = 0.1;
+T = t(end) - t(1);
+ta = t(1)-factor*T;
+tb = t(end)+factor*T;
+t0 = linspace(ta, tb, numel(t));
+
+t0 = t;
+
+% capacities: raw is a straight line (adjust sign)
+capraw = -cumtrapz(dataraw.time{1}*hour, dataraw.current{1}); % straight, adjust sign
+
+% processed: plot(cap) is not straight, but plot(expdata.time, cap) is straight
+capexp = cumtrapz(expdata.time, ecs.expI*ones(size(expdata.time)));
+
+cap0 = cumtrapz(t0, ecs.expI*ones(size(t0)));
+cap = cumtrapz(t, ecs.expI*ones(size(t)));
+
+[~, fpe0, fne0] = ecs.computeF(t0, X0);
+ocp0 = fpe0 - fne0;
+[~, fpe, fne, thetape, thetane] = ecs.computeF(t, Xopt);
+ocp = fpe - fne;
+
+figure; hold on; grid on
+plot(capexp/hour, expdata.U, 'k--', 'displayname', 'Experiment 0.05 C');
+plot(cap0/hour, fpe0, 'displayname', 'pe init', 'color', colors(1,:), 'linestyle', '--');
+plot(cap0/hour, fne0, 'displayname', 'ne init', 'color', colors(2,:), 'linestyle', '--');
+plot(cap0/hour, ocp0, 'displayname', 'ocp init', 'color', colors(3,:), 'linestyle', '--');
+plot(cap/hour, fpe, 'displayname', 'pe opt', 'color', colors(1,:));
+plot(cap/hour, fne, 'displayname', 'ne opt', 'color', colors(2,:));
+plot(cap/hour, ocp, 'displayname', 'ocp opt', 'color', colors(3,:));
+
+xlabel 'Capacity  /  Ah';
+ylabel 'Voltage  /  V';
+legend('location', 'sw')
+
+title('Cell balancing in capacity domain');
+
+% % draw vertical lines at exptime limits
+% yL = ylim;
+% plot(expdata.time(1)*[1, 1]/hour, yL, 'k:', 'handlevisibility', 'off');
+% plot(expdata.time(end)*[1, 1]/hour, yL, 'k:', 'handlevisibility', 'off');
+
+%% Cell balancing vs lithiation one electrode at a time to understand better
+
+% Discharge => PE x increases, SOC of battery decrease, OCP decreases
+
+% Plot step by step: first initial, then add optimized
+
+colors = lines(5);
+fsz = 14;
+style = {'linestyle', ':', 'handlevisibility', 'off'};
+left = {'horizontalalignment', 'left', 'fontsize', fsz, 'handlevisibility', 'off'};
+right = {'horizontalalignment', 'right', 'fontsize', fsz, 'handlevisibility', 'off'};
+
+%vals0 = ecs.updateGuestStoichiometries(X0, 'includeGuestStoichiometry0', true);
+%[valsopt, valsNotTruncated] = ecs.updateGuestStoichiometries(Xopt, 'includeGuestStoichiometry0', true);
+
+jsonInit = output0.jsonstruct;
+jsonOpt = outputOpt.jsonstruct;
+
+t = expdata.time;
+
+% Possibly extend time 20% before and after
+factor = 0.1;
+T = t(end) - t(1);
+ta = t(1)-factor*T;
+tb = t(end)+factor*T;
+t0 = linspace(ta, tb, numel(t));
+
+t0 = t;
+
+[~, fpeInit, ~, thetaPEinit] = ecs.computeF(t0, X0);
+[~, fpe, ~, thetape, ~] = ecs.computeF(t, Xopt);
+
+figure; hold on; grid on
+
+% 1. Plot initial OCPs
+plot(thetaPEinit, fpeInit, 'displayname', 'PE init', 'color', colors(1,:), 'linestyle', '--', 'displayname', 'PE OCP(thetaPEinit)');
+
+% include start and end points
+plot(thetaPEinit(1), fpeInit(1), 'o', 'color', colors(1,:), 'handlevisibility', 'off');
+plot(thetaPEinit(end), fpeInit(end), 'x', 'color', colors(1,:), 'handlevisibility', 'off');
+
+% include guest stoichiometries start and end
+theta0 = jsonInit.(pe).(co).(am).(itf).guestStoichiometry0;
+theta100 = jsonInit.(pe).(co).(am).(itf).guestStoichiometry100;
+line([theta0, theta0], [4, 5], 'color', colors(1,:), style{:});
+line([theta100, theta100], [4, 5], 'color', colors(1,:), style{:});
+text(theta0, 4.1, 'PE theta0 init', 'color', colors(1,:), left{:});
+text(theta100, 4.1, 'PE theta100 init', 'color', colors(1,:), left{:});
+
+% Comments: the theta pe end points doesn't match PE theta(end)
+fprintf('PE theta100 init from jsonInit: %g\n', theta100);
+fprintf('PE theta100 from initial sim: %g\n', thetaPEinit(end));
+
+xlim([-0.1, 1.1]);
+ylim([4, 5]);
+
+xlabel 'Stoichiometry \theta  /  -';
+title('PE cell balancing vs "lithiation"')
+legend;
+
+return
+
+%% 2. Plot calibrated OCPs (PE)
+plot(thetape, fpe, 'displayname', 'PE opt', 'color', colors(3,:), 'linestyle', ':');
+
+% include start and end points
+plot(thetape(1), fpe(1), 'o', 'color', colors(3,:), 'handlevisibility', 'off');
+plot(thetape(end), fpe(end), 'x', 'color', colors(3,:), 'handlevisibility', 'off');
+
+% include guest stoichiometries start and end
+theta0 = jsonOpt.(pe).(co).(am).(itf).guestStoichiometry0;
+theta100 = jsonOpt.(pe).(co).(am).(itf).guestStoichiometry100;
+line([theta0, theta0], [4, 5], 'color', colors(3,:), style{:});
+line([theta100, theta100], [4, 5], 'color', colors(3,:), style{:});
+text(theta0, 4.5, 'PE theta0 opt', 'color', colors(3,:), right{:});
+text(theta100, 4.5, 'PE theta100 opt', 'color', colors(3,:), right{:});
+
+
+
+%% Same for NE
+
+% Discharge: NE x decreases, voltage decreases, SOC of battery decreases
+
+colors = lines(5);
+fsz = 14;
+style = {'linestyle', ':', 'handlevisibility', 'off'};
+left = {'horizontalalignment', 'left', 'fontsize', fsz, 'handlevisibility', 'off'};
+right = {'horizontalalignment', 'right', 'fontsize', fsz, 'handlevisibility', 'off'};
+
+%vals0 = ecs.updateGuestStoichiometries(X0, 'includeGuestStoichiometry0', true);
+%[valsopt, valsNotTruncated] = ecs.updateGuestStoichiometries(Xopt, 'includeGuestStoichiometry0', true);
+
+jsonInit = output0.jsonstruct;
+jsonOpt = outputOpt.jsonstruct;
+
+t = expdata.time;
+
+% Possibly extend time 20% before and after
+factor = 0.1;
+T = t(end) - t(1);
+ta = t(1)-factor*T;
+tb = t(end)+factor*T;
+t0 = linspace(ta, tb, numel(t));
+
+t0 = t;
+
+[~, ~, fneInit, ~, thetaNEinit] = ecs.computeF(t0, X0);
+[~, ~, fneOpt, ~, thetaNEopt] = ecs.computeF(t, Xopt);
+
+figure; hold on; grid on
+
+% 1. Plot initial OCPs
+plot(thetaNEinit, fneInit, 'displayname', 'NE init', 'color', colors(2,:), 'linestyle', '--');
+
+% include start and end points
+plot(thetaNEinit(1), fneInit(1), 'o', 'color', colors(2,:), 'handlevisibility', 'off');
+plot(thetaNEinit(end), fneInit(end), 'x', 'color', colors(2,:), 'handlevisibility', 'off');
+
+% include guest stoichiometries start and end
+theta0 = jsonInit.(ne).(co).(am).(itf).guestStoichiometry0;
+theta100 = jsonInit.(ne).(co).(am).(itf).guestStoichiometry100;
+line([theta0, theta0], [0, 1], 'color', colors(2,:), style{:});
+line([theta100, theta100], [0, 1], 'color', colors(2,:), style{:});
+text(theta0, 0.75, 'NE theta0 init', 'color', colors(2,:), left{:});
+text(theta100, 0.75, 'NE theta100 init', 'color', colors(2,:), left{:});
+
+xlim([-0.3, 1.1]);
+ylim([0, 1]);
+
+xlabel 'Stoichiometry \theta  /  -';
+title('NE cell balancing vs "lithiation"')
+legend;
+
+return
+
+%% 2. Plot calibrated OCPs (NE)
+
+[~, valsNotTruncated] = ecs.updateGuestStoichiometries(Xopt, 'includeGuestStoichiometry0', true);
+
+plot(thetaNEopt, fneOpt, 'displayname', 'NE opt', 'color', colors(4,:), 'linestyle', ':');
+
+% include start and end points
+plot(thetaNEopt(1), fneOpt(1), 'o', 'color', colors(4,:), 'handlevisibility', 'off');
+plot(thetaNEopt(end), fneOpt(end), 'x', 'color', colors(4,:), 'handlevisibility', 'off');
+
+% include guest stoichiometries start and end
+theta0 = valsNotTruncated.(ne).guestStoichiometry0;
+%theta0 = jsonOpt.(ne).(co).(am).(itf).guestStoichiometry0;
+theta100 = jsonOpt.(ne).(co).(am).(itf).guestStoichiometry100;
+line([theta0, theta0], [0, 1], 'color', colors(4,:), style{:});
+line([theta100, theta100], [0, 1], 'color', colors(4,:), style{:});
+text(theta0, 0.75, 'NE theta0 opt', 'color', colors(4,:), right{:});
+text(theta100, 0.75, 'NE theta100 opt', 'color', colors(4,:), right{:});
+
+
+
+return
+
+
+
+colors = lines(5);
+
+vals0 = ecs.updateGuestStoichiometries(X0, 'includeGuestStoichiometry0', true);
+[valsopt, valsNotTruncated] = ecs.updateGuestStoichiometries(Xopt, 'includeGuestStoichiometry0', true);
+
+t = expdata.time;
+
+% extend time 20% before and after
+factor = 0.1;
+T = t(end) - t(1);
+ta = t(1)-factor*T;
+tb = t(end)+factor*T;
+t0 = linspace(ta, tb, numel(t));
+
+t0 = t;
+
+[~, fpe0, fne0] = ecs.computeF(t0, X0);
+ocp0 = fpe0 - fne0;
+[~, fpe, fne, thetape, thetane] = ecs.computeF(t, Xopt);
+ocp = fpe - fne;
+
+figure; hold on; grid on
+plot(thetane0, fne0, 'displayname', 'NE init', 'color', colors(2,:), 'linestyle', '--');
+plot(thetane, fne, 'displayname', 'NE opt', 'color', colors(4,:), 'linestyle', ':');
+
+% include start and end points
+plot(thetane0(1), fne0(1), 'o', 'color', colors(2,:), 'handlevisibility', 'off');
+plot(thetane0(end), fne0(end), 'x', 'color', colors(2,:), 'handlevisibility', 'off');
+plot(thetane(1), fne(1), 'o', 'color', colors(4,:), 'handlevisibility', 'off');
+plot(thetane(end), fne(end), 'x', 'color', colors(4,:), 'handlevisibility', 'off');
+
+% include guest stoichiometries at start and end
+plotGuestStoichiometries = true;
+if plotGuestStoichiometries
+    json0 = output0.jsonstruct;
+    jsonOpt = outputOpt.jsonstruct;
+
+    fsz = 14;
+    style = {'linestyle', ':', 'handlevisibility', 'off'};
+    left = {'horizontalalignment', 'left', 'fontsize', fsz, 'handlevisibility', 'off'};
+    right = {'horizontalalignment', 'right', 'fontsize', fsz, 'handlevisibility', 'off'};
+
+    theta0 = json0.(ne).(co).(am).(itf).guestStoichiometry0;
+    theta100 = json0.(ne).(co).(am).(itf).guestStoichiometry100;
+    line([theta0, theta0], [0, 1], 'color', colors(2,:), style{:});
+    line([theta100, theta100], [0, 1], 'color', colors(2,:), style{:});
+    text(theta0, 0.1, 'NE theta0 init', 'color', colors(2,:), right{:});
+    text(theta100, 0.1, 'NE theta100 init', 'color', colors(2,:), left{:});
+
+    theta0 = valsNotTruncated.(ne).guestStoichiometry0;
+    %theta0 = jsonOpt.(ne).(co).(am).(itf).guestStoichiometry0;
+    theta100 = jsonOpt.(ne).(co).(am).(itf).guestStoichiometry100;
+    line([theta0, theta0], [0, 1], 'color', colors(4,:), style{:});
+    line([theta100, theta100], [0, 1], 'color', colors(4,:), style{:});
+    text(theta0, 0.75, 'NE theta0 opt', 'color', colors(4,:), right{:});
+    text(theta100, 0.75, 'NE theta100 opt', 'color', colors(4,:), left{:});
+
+end
+
+xlabel 'Stoichiometry \theta  /  -';
+title('NE cell balancing vs "lithiation"')
+legend;
+
+
+
+%% Plot cell balancing vs lithiation
+
+% each time gives thetape and thetane, from which we calculate
+% ocps. so for each time, we get (thetape, ocppe) and (thetane, ocpne)
+
+% Don't do this plotting, do one electrode at a time
+
+colors = lines(5);
+
+vals0 = ecs.updateGuestStoichiometries(X0, 'includeGuestStoichiometry0', true);
+[valsopt, valsNotTruncated] = ecs.updateGuestStoichiometries(Xopt, 'includeGuestStoichiometry0', true);
+
+t = expdata.time;
+
+% extend time 20% before and after
+factor = 0.1;
+T = t(end) - t(1);
+ta = t(1)-factor*T;
+tb = t(end)+factor*T;
+t0 = linspace(ta, tb, numel(t));
+
+t0 = t;
+
+[~, fpe0, fne0] = ecs.computeF(t0, X0);
+ocp0 = fpe0 - fne0;
+[~, fpe, fne, thetape, thetane] = ecs.computeF(t, Xopt);
+ocp = fpe - fne;
+
+figure; hold on; grid on
+plot(thetape0, fpe0, 'displayname', 'PE init', 'color', colors(1,:), 'linestyle', '--');
+plot(thetane0, fne0, 'displayname', 'NE init', 'color', colors(2,:), 'linestyle', '--');
+plot(thetape, fpe, 'displayname', 'PE opt', 'color', colors(3,:), 'linestyle', ':');
+plot(thetane, fne, 'displayname', 'NE opt', 'color', colors(4,:), 'linestyle', ':');
+
+% include start and end points
+plot(thetape0(1), fpe0(1), 'o', 'color', colors(1,:), 'handlevisibility', 'off');
+plot(thetape0(end), fpe0(end), 'x', 'color', colors(1,:), 'handlevisibility', 'off');
+plot(thetane0(1), fne0(1), 'o', 'color', colors(2,:), 'handlevisibility', 'off');
+plot(thetane0(end), fne0(end), 'x', 'color', colors(2,:), 'handlevisibility', 'off');
+plot(thetape(1), fpe(1), 'o', 'color', colors(3,:), 'handlevisibility', 'off');
+plot(thetape(end), fpe(end), 'x', 'color', colors(3,:), 'handlevisibility', 'off');
+plot(thetane(1), fne(1), 'o', 'color', colors(4,:), 'handlevisibility', 'off');
+plot(thetane(end), fne(end), 'x', 'color', colors(4,:), 'handlevisibility', 'off');
+
+% include guest stoichiometries at start and end
+plotGuestStoichiometries = true;
+if plotGuestStoichiometries
+    json0 = output0.jsonstruct;
+    jsonOpt = outputOpt.jsonstruct;
+
+    fsz = 14;
+    style = {'linestyle', ':', 'handlevisibility', 'off'};
+    left = {'horizontalalignment', 'left', 'fontsize', fsz, 'handlevisibility', 'off'};
+    right = {'horizontalalignment', 'right', 'fontsize', fsz, 'handlevisibility', 'off'};
+
+    theta0 = json0.(pe).(co).(am).(itf).guestStoichiometry0;
+    theta100 = json0.(pe).(co).(am).(itf).guestStoichiometry100;
+    line([theta0, theta0], [4, 5], 'color', colors(1,:), style{:});
+    line([theta100, theta100], [4, 5], 'color', colors(1,:), style{:});
+    text(theta0, 4.1, 'PE theta0 init', 'color', colors(1,:), left{:});
+    text(theta100, 4.1, 'PE theta100 init', 'color', colors(1,:), left{:});
+
+    theta0 = valsNotTruncated.(ne).guestStoichiometry0;
+    %theta0 = json0.(ne).(co).(am).(itf).guestStoichiometry0;
+    theta100 = json0.(ne).(co).(am).(itf).guestStoichiometry100;
+    line([theta0, theta0], [0, 1], 'color', colors(2,:), style{:});
+    line([theta100, theta100], [0, 1], 'color', colors(2,:), style{:});
+    text(theta0, 0.1, 'NE theta0 init', 'color', colors(2,:), right{:});
+    text(theta100, 0.1, 'NE theta100 init', 'color', colors(2,:), left{:});
+
+    theta0 = jsonOpt.(pe).(co).(am).(itf).guestStoichiometry0;
+    theta100 = jsonOpt.(pe).(co).(am).(itf).guestStoichiometry100;
+    line([theta0, theta0], [4, 5], 'color', colors(3,:), style{:});
+    line([theta100, theta100], [4, 5], 'color', colors(3,:), style{:});
+    text(theta0, 4.5, 'PE theta0 opt', 'color', colors(3,:), right{:});
+    text(theta100, 4.5, 'PE theta100 opt', 'color', colors(3,:), right{:});
+
+    theta0 = jsonOpt.(ne).(co).(am).(itf).guestStoichiometry0;
+    theta100 = jsonOpt.(ne).(co).(am).(itf).guestStoichiometry100;
+    line([theta0, theta0], [0, 1], 'color', colors(4,:), style{:});
+    line([theta100, theta100], [0, 1], 'color', colors(4,:), style{:});
+    text(theta0, 0.75, 'NE theta0 opt', 'color', colors(4,:), right{:});
+    text(theta100, 0.75, 'NE theta100 opt', 'color', colors(4,:), left{:});
+
+end
+
+xlabel('theta')
+title('cell balancing vs "lithiation"')
+legend;
+
+%%
+
+return
+
+%% Plot dQ/dV and Q(V)
+
+t = expdata.time;
+t = dataraw.time{1} * hour;
+t = t(:);
+
+% capacities: raw is a straight line (adjust sign)
+capraw = -cumtrapz(dataraw.time{1}*hour, dataraw.current{1}); % straight, adjust sign
+
+% processed: plot(cap) is not straight, but plot(expdata.time, cap) is straight
+capexp = cumtrapz(expdata.time, ecs.expI*ones(size(expdata.time)));
+
+
+% % extend time 10% before and after
+% T = t(end) - t(1);
+% t0 = t(1)-0.1*T;
+% t1 = t(end)+0.1*T;
+% t = linspace(t0, t1, numel(t));
+
+[~, fpe0, fne0, thetape0, thetane0] = ecs.computeF(t, X0);
+ocp0 = fpe0 - fne0;
+[~, fpe, fne, thetape, thetane] = ecs.computeF(t, Xopt);
+ocp = fpe - fne;
+
+colors = lines(4);
+
+figure; hold on; grid on
+plot(expdata.time/hour, expdata.U, 'k--', 'displayname', 'Experiment 0.05 C');
+plot(t/hour, fpe0, 'displayname', 'pe 0', 'color', colors(1,:), 'linestyle', '--');
+plot(t/hour, fne0, 'displayname', 'ne 0', 'color', colors(2,:), 'linestyle', '--');
+plot(t/hour, ocp0, 'displayname', 'ocp 0', 'color', colors(3,:), 'linestyle', '--');
+plot(t/hour, fpe, 'displayname', 'pe opt', 'color', colors(1,:));
+plot(t/hour, fne, 'displayname', 'ne opt', 'color', colors(2,:));
+plot(t/hour, ocp, 'displayname', 'ocp opt', 'color', colors(3,:));
+
+xlabel 'Time  /  h';
+ylabel 'Voltage  /  V';
+legend('location', 'sw')
+
+% plot derivatives
+derivative = @(y,x) diff(y)./diff(x);
+figure; hold on; grid on
+% plot(t(2:end)/hour, derivative(fpe0, t), 'displayname', 'dV/dt pe 0', 'color', colors(1,:), 'linestyle', '--');
+plot(t(2:end)/hour, derivative(fne0, t), 'displayname', 'dV/dt ne 0', 'color', colors(2,:), 'linestyle', '--');
+%plot(t(2:end)/hour, derivative(ocp0, t), 'displayname', 'dV/dt ocp 0', 'color', colors(3,:), 'linestyle', '--');
+%plot(t(2:end)/hour, derivative(fpe, t), 'displayname', 'dV/dt pe opt', 'color', colors(1,:));
+plot(t(2:end)/hour, derivative(fne, t), 'displayname', 'dV/dt ne opt', 'color', colors(2,:));
+%plot(t(2:end)/hour, derivative(ocp, t), 'displayname', 'dV/dt ocp opt', 'color', colors(3,:));
+legend('location', 'nw')
+
+
+% Plot vs capacity
+t0 = t;
+[~, fpe0, fne0] = ecs.computeF(t0, X0);
+ocp0 = fpe0 - fne0;
+
+[~, fpe, fne] = ecs.computeF(t, Xopt);
+ocp = fpe - fne;
+
+% figure; hold on; grid on
+% plot(cap/hour, expdata.U, 'k--', 'displayname', 'Experiment 0.05 C');
+% plot(cap/hour, fpe0, 'displayname', 'pe 0', 'color', colors(1,:), 'linestyle', '--');
+% plot(cap/hour, fne0, 'displayname', 'ne 0', 'color', colors(2,:), 'linestyle', '--');
+% plot(cap/hour, ocp0, 'displayname', 'ocp 0', 'color', colors(3,:), 'linestyle', '--');
+% plot(cap/hour, fpe, 'displayname', 'pe opt', 'color', colors(1,:));
+% plot(cap/hour, fne, 'displayname', 'ne opt', 'color', colors(2,:));
+% plot(cap/hour, ocp, 'displayname', 'ocp opt', 'color', colors(3,:));
+
+% xlabel 'Capacity  /  Ah';
+% ylabel 'Voltage  /  V';
+% legend('location', 'se')
+
+% % plot dqdv
+% figure; hold on; grid on
+% %dqdvraw = gradient(capraw)./gradient(dataraw.voltage{1}, 2);
+% dqdvexp = gradient(cap)./gradient(expdata.U);
+% dqdv0 = gradient(cap)./gradient(ocp0);
+% dqdv = gradient(cap)./gradient(ocp);
+% %plot(dataraw.voltage{1}, dqdvraw, 'g', 'displayname', 'Experiment raw data');
+% plot(expdata.U, -dqdvexp, 'k--', 'displayname', 'Experiment 0.05 C');
+% plot(ocp0, -dqdv0, 'displayname', 'dQ/dV 0', 'color', colors(1,:), 'linestyle', '--');
+% plot(ocp, -dqdv, 'displayname', 'dQ/dV opt', 'color', colors(1,:));
+% minmax = @(x) [min(x), max(x)];
+% disp(minmax(expdata.U));
+% disp(minmax(ocp0));
+% disp(minmax(ocp));
+% disp(minmax(dqdvexp));
+% disp(minmax(dqdv0));
+% disp(minmax(dqdv));
+% ylim([-2e2, 7e4])
+
+
+% plot dqdv
+qdvopts = {'nv', 500, ...
+           'polyorder', 2, ...
+           'difforder', 0, ...
+           'x0', 0};
+% [vgraw, qgraw, dqdvraw] = computedqdv(dataraw.time{1}*hour, dataraw.voltage{1}, abs(dataraw.current{1}), qdvopts{:});
+% [vgexp, qgexp, dqdvexp] = computedqdv(expdata.time, expdata.U, ecs.expI*ones(size(expdata.time)), qdvopts{:});
+% [vg0, qg0, dqdv0] = computedqdv(t0, ocp0, ecs.expI*ones(size(t0)), qdvopts{:});
+% [vg, qg, dqdv] = computedqdv(t, ocp, ecs.expI*ones(size(t)), qdvopts{:});
+% cap0 = cumtrapz(t0, ecs.expI*ones(size(t0)));
+% cap = cumtrapz(t, ecs.expI*ones(size(t)));
+
+
+
+% figure; hold on; grid on
+% plot(vgexp)
+% plot(vg0)
+% plot(vg)
+
+% figure; hold on; grid on
+% plot(qgexp)
+% plot(qg0)
+% plot(qg)
+
+% figure; hold on; grid on
+% plot(vgexp, qgexp)
+% plot(vg0, qg0)
+% plot(vg, qg)
+
+derivative = @(y,x) diff(y)./diff(x);
+
+% plot q=q(v)
+figure; hold on; grid on
+plot(dataraw.voltage{1}, capraw, 'color', colors(3,:), 'displayname', 'Experiment raw data');
+plot(vgraw, qgraw, 'o', 'color', colors(3,:), 'displayname', 'Experiment raw data (sgdf)');
+plot(expdata.U, capexp, 'k--', 'displayname', 'Experiment');
+plot(vgexp, qgexp, 'k--o', 'displayname', 'Experiment (sgdf)');
+plot(ocp0, cap0, 'displayname', 'q(v) init', 'color', colors(1,:), 'linestyle', '--');
+plot(vg0, qg0, 'o', 'displayname', 'q(v) init (sgdf)', 'color', colors(1,:), 'linestyle', '--');
+plot(ocp, cap, 'displayname', 'q(v) opt', 'color', colors(2,:));
+plot(vg, qg, 'o', 'displayname', 'q(v) opt (sgdf)', 'color', colors(2,:));
+xlabel 'Voltage  /  V';
+ylabel 'Capacity  /  As';
+legend('location', 'sw')
+
+figure; hold on; grid on
+plot(vgraw, -gradient(qgraw)./gradient(vgraw), 'color', colors(3,:), 'displayname', 'Experiment raw data');
+plot(vgexp, -gradient(qgexp)./gradient(vgexp), 'k--', 'displayname', 'Experiment 0.05 C');
+plot(vg0, -gradient(qg0)./gradient(vg0), 'displayname', 'dQ/dV init', 'color', colors(1,:), 'linestyle', '--');
+plot(vg, -gradient(qg)./gradient(vg), 'displayname', 'dQ/dV opt', 'color', colors(2,:));
+title('dQ/dV computed from Q(V)');
+legend('location', 'northwest')
+
+figure; hold on; grid on
+plot(vg, -gradient(qg)./gradient(vg), '.-', 'markersize', 15)
+plot(vg(2:end), -derivative(qg, vg), 'o-')
+
+
+% figure; hold on; grid on
+% qmax = max(cap);
+% plot(vgraw, dqdvraw, 'color', colors(3,:), 'displayname', 'Experiment raw data');
+% plot(vgexp, dqdvexp, 'k--', 'displayname', 'Experiment 0.05 C');
+% plot(vg0, dqdv0, 'displayname', 'dQ/dV 0', 'color', colors(1,:), 'linestyle', '--');
+% plot(vg, dqdv, 'displayname', 'dQ/dV opt', 'color', colors(2,:));
+% title(qdvopts);
+
 %{
 Copyright 2021-2024 SINTEF Industry, Sustainable Energy Technology
 and SINTEF Digital, Mathematics & Cybernetics.

@@ -466,7 +466,7 @@ classdef EquilibriumCalibrationSetup2222
         end
 
 
-        function [f, fpe, fne] = computeF(ecs, t, X)
+        function [f, fpe, fne, thetape, thetane] = computeF(ecs, t, X)
 
             ne      = 'NegativeElectrode';
             pe      = 'PositiveElectrode';
@@ -488,16 +488,16 @@ classdef EquilibriumCalibrationSetup2222
             guestStoichiometry100 = vals.(pe).guestStoichiometry100;
             totalAmount           = vals.(pe).totalAmount;
 
-            theta = ecs.computeTheta(t, pe, 0, guestStoichiometry100, totalAmount);
+            thetape = ecs.computeTheta(t, pe, 0, guestStoichiometry100, totalAmount);
             cmax  = vals0.(pe).saturationConcentration;
-            fpe = ecs.model.(pe).(co).(am).(itf).computeOCPFunc(theta*cmax, T, cmax);
+            fpe = ecs.model.(pe).(co).(am).(itf).computeOCPFunc(thetape*cmax, T, cmax);
 
             guestStoichiometry100 = vals.(ne).guestStoichiometry100;
             totalAmount           = vals.(ne).totalAmount;
 
-            theta = ecs.computeTheta(t, ne, 0, guestStoichiometry100, totalAmount);
+            thetane = ecs.computeTheta(t, ne, 0, guestStoichiometry100, totalAmount);
             cmax  = vals0.(ne).saturationConcentration;
-            fne = ecs.model.(ne).(co).(am).(itf).computeOCPFunc(theta*cmax, T, cmax);
+            fne = ecs.model.(ne).(co).(am).(itf).computeOCPFunc(thetane*cmax, T, cmax);
 
             f = fpe - fne;
 

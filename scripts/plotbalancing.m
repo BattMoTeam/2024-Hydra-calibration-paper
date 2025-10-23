@@ -1,4 +1,7 @@
-%%
+%% investigate cell balancing; some done here and some in
+%% runEquilibriumCalibration.m due to dependence on EquilibriumCalibrationSetup2222
+
+
 
 clear all
 % close all
@@ -61,6 +64,38 @@ inputOpt = struct('DRate'        , rate                        , ...
                   'highRateParams', jsonstructHRC);
 
 outputOpt = runHydra(inputOpt, 'clearSimulation', false);
+
+
+%% Plot cell balancing time domain
+
+% here we'll make use of EquilibriumCalibrationSetup2222 so rerun this
+
+
+
+ecs = EquilibriumCalibrationSetup2222(outputOpt.model, expdata);
+
+t = expdata.time;
+
+[~, fpe0, fne0, thetape0, thetane0] = ecs.computeF(t, X0);
+ocp0 = fpe0 - fne0;
+[~, fpe, fne, thetape, thetane] = ecs.computeF(t, Xopt);
+ocp = fpe - fne;
+
+figure; hold on; grid on
+plot(expdata.time/hour, expdata.U, 'k--', 'displayname', 'Experiment 0.05 C');
+plot(t/hour, fpe0, 'displayname', 'pe 0', 'color', colors(1,:), 'linestyle', '--');
+plot(t/hour, fne0, 'displayname', 'ne 0', 'color', colors(2,:), 'linestyle', '--');
+plot(t/hour, ocp0, 'displayname', 'ocp 0', 'color', colors(3,:), 'linestyle', '--');
+plot(t/hour, fpe, 'displayname', 'pe opt', 'color', colors(1,:));
+plot(t/hour, fne, 'displayname', 'ne opt', 'color', colors(2,:));
+plot(t/hour, ocp, 'displayname', 'ocp opt', 'color', colors(3,:));
+
+xlabel 'Time  /  h';
+ylabel 'Voltage  /  V';
+legend('location', 'sw')
+
+
+return
 
 %% Plot half cell OCPs and full cell discharge
 
