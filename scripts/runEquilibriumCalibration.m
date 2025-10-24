@@ -242,8 +242,11 @@ guestStoichiometry100 = jsonInit.(pe).(co).(am).(itf).guestStoichiometry100;
 plotline = @(x) line([x, x], [2.9, 5], 'color', 'k', style{:});
 plotline(guestStoichiometry0);
 plotline(guestStoichiometry100);
-text(guestStoichiometry0, 4.1, sprintf('PE guestStoichiometry0 init=%g', guestStoichiometry0), 'color', 'k', left{:});
-text(guestStoichiometry100, 4.1, sprintf('PE guestStoichiometry100 init=%g', guestStoichiometry100), 'color', 'k', left{:});
+plottext = @(x, s) text(x, 4.1, sprintf('PE %s init=%g', s, x), 'color', 'k', left{:});
+plottext(guestStoichiometry0, 'guestStoichiometry0');
+plottext(guestStoichiometry100, 'guestStoichiometry100');
+% text(guestStoichiometry0, 4.1, sprintf('PE guestStoichiometry0 init=%g', guestStoichiometry0), 'color', 'k', left{:});
+% text(guestStoichiometry100, 4.1, sprintf('PE guestStoichiometry100 init=%g', guestStoichiometry100), 'color', 'k', left{:});
 
 % 1. Plot initial OCPs in ecs class
 color = colors(1,:);
@@ -264,7 +267,7 @@ fprintf('PE guestStoichiometry0 and guestStoichiometry100 from computeF: %1.5f\t
 xlim([-0.1, 1.1]);
 ylim([2.9, 5]);
 
-xlabel 'Stoichiometry \theta  /  -';
+xlabel 'Stoichiometry  /  -';
 title('PE OCP vs stoichiometry');
 legend('location', 'sw')
 
@@ -274,11 +277,12 @@ return
 
 % is it like this? or like 2b?
 
+color = colors(2,:);
+
 dn = sprintf('fpeOpt over thetaPEopt (%g, %g)', thetaPEopt(1), thetaPEopt(end));
-plot(thetaPEopt, fpeOpt, 'displayname', dn, 'color', colors(2,:), 'linestyle', ':');
+plot(thetaPEopt, fpeOpt, 'displayname', dn, 'color', color, 'linestyle', ':');
 
 % include start and end points
-color = colors(2,:);
 plot(thetaPEopt(1), fpeOpt(1), 'o', 'color', color, 'handlevisibility', 'off');
 plot(thetaPEopt(end), fpeOpt(end), 'x', 'color', color, 'handlevisibility', 'off');
 
@@ -315,8 +319,6 @@ plot(xopt, y, 'color', color, 'displayname', 'PE computeOCP over opt guestStoich
 plotline = @(x) line([x, x], [4, 5], 'color', color, style{:}, 'handlevisibility', 'off');
 plotline(guestStoichiometry0);
 plotline(guestStoichiometry100);
-%line([guestStoichiometry0, guestStoichiometry0], [4, 5], 'color', color, style{:}, 'handlevisibility', 'off');
-%line([guestStoichiometry100, guestStoichiometry100], [4, 5], 'color', color, style{:});
 text(guestStoichiometry0, 4.5, sprintf('PE guestStoichiometry0 opt=%g', guestStoichiometry0), 'color', color, right{:});
 text(guestStoichiometry100, 4.5, sprintf('PE guestStoichiometry100 opt=%g', guestStoichiometry100), 'color', color, right{:});
 
