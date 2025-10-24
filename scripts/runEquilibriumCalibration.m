@@ -233,28 +233,30 @@ guestStoichiometry0 = jsonInit.(pe).(co).(am).(itf).guestStoichiometry0;
 guestStoichiometry100 = jsonInit.(pe).(co).(am).(itf).guestStoichiometry100;
 x = linspace(guestStoichiometry0, guestStoichiometry100, 100);
 y = computeOCPcathodeH0b(x, [], 1);
-plot(x, y, 'displayname', sprintf('PE xlsx (%g, %g)', min(x), max(x)), 'color', 'k', 'linestyle', ':', 'linewidth', 1)
+dn = sprintf('PE computeOCP over orig guestStoichiometry (%g, %g)', min(x), max(x));
+plot(x, y, 'displayname', dn, 'color', 'k', 'linestyle', ':', 'linewidth', 1)
 
 % include guest stoichiometries start and end
 guestStoichiometry0 = jsonInit.(pe).(co).(am).(itf).guestStoichiometry0;
 guestStoichiometry100 = jsonInit.(pe).(co).(am).(itf).guestStoichiometry100;
-line([guestStoichiometry0, guestStoichiometry0], [2.9, 5], 'color', 'k', style{:});
-line([guestStoichiometry100, guestStoichiometry100], [2.9, 5], 'color', 'k', style{:});
+plotline = @(x) line([x, x], [2.9, 5], 'color', 'k', style{:});
+plotline(guestStoichiometry0);
+plotline(guestStoichiometry100);
 text(guestStoichiometry0, 4.1, sprintf('PE guestStoichiometry0 init=%g', guestStoichiometry0), 'color', 'k', left{:});
 text(guestStoichiometry100, 4.1, sprintf('PE guestStoichiometry100 init=%g', guestStoichiometry100), 'color', 'k', left{:});
 
 % 1. Plot initial OCPs in ecs class
 color = colors(1,:);
-plot(thetaPEinit, fpeInit, 'color', color, 'linestyle', '--', 'displayname',sprintf('PE OCP init (%g, %g)', thetaPEinit(1), thetaPEinit(end)));
+dn = sprintf('fpeinit over thetapeinit (%g, %g)', thetaPEinit(1), thetaPEinit(end));
+plot(thetaPEinit, fpeInit, 'color', color, 'linestyle', '--', 'displayname', dn);
 
 % include start and end points
 plot(thetaPEinit(1), fpeInit(1), 'o', 'color', color, 'handlevisibility', 'off');
 plot(thetaPEinit(end), fpeInit(end), 'x', 'color', color, 'handlevisibility', 'off');
-line([thetaPEinit(1), thetaPEinit(1)], [2.9, 5], 'color', color, style{:});
-line([thetaPEinit(end), thetaPEinit(end)], [2.9, 5], 'color', color, style{:});
+plotline(thetaPEinit(1));
+plotline(thetaPEinit(end));
 % text(thetaPEinit(1), 3.5, sprintf('PE thetaPEinit(1)=%g', thetaPEinit(1)), 'color', color, left{:});
 % text(thetaPEinit(end), 3.5, sprintf('PE thetaPEinit(end)=%g', thetaPEinit(end)), 'color', color, right{:});
-
 
 fprintf('PE guestStoichiometry0 and guestStoichiometry100 from JsonInit: %1.5f\t %1.5f\n', guestStoichiometry0, guestStoichiometry100);
 fprintf('PE guestStoichiometry0 and guestStoichiometry100 from computeF: %1.5f\t %1.5f\n', thetaPEinit(end), thetaPEinit(1));
@@ -264,7 +266,7 @@ ylim([2.9, 5]);
 
 xlabel 'Stoichiometry \theta  /  -';
 title('PE OCP vs stoichiometry');
-legend;
+legend('location', 'sw')
 
 return
 
@@ -272,7 +274,8 @@ return
 
 % is it like this? or like 2b?
 
-plot(thetaPEopt, fpeOpt, 'displayname', sprintf('PE OCP opt (%g, %g)', thetaPEopt(1), thetaPEopt(end)), 'color', colors(2,:), 'linestyle', ':');
+dn = sprintf('fpeOpt over thetaPEopt (%g, %g)', thetaPEopt(1), thetaPEopt(end));
+plot(thetaPEopt, fpeOpt, 'displayname', dn, 'color', colors(2,:), 'linestyle', ':');
 
 % include start and end points
 color = colors(2,:);
@@ -282,9 +285,11 @@ plot(thetaPEopt(end), fpeOpt(end), 'x', 'color', color, 'handlevisibility', 'off
 % include guest stoichiometries start and end
 guestStoichiometry0 = jsonOpt.(pe).(co).(am).(itf).guestStoichiometry0;
 guestStoichiometry100 = jsonOpt.(pe).(co).(am).(itf).guestStoichiometry100;
-plot(guestStoichiometry0, fpeOpt(1), '.', 'markersize', 12, 'color', color, 'displayname', sprintf('PE guestStoichiometry0 opt=%g', guestStoichiometry0));
-line([guestStoichiometry0, guestStoichiometry0], [4, 5], 'color', color, style{:}, 'handlevisibility', 'off');
-line([guestStoichiometry100, guestStoichiometry100], [4, 5], 'color', color, style{:});
+dn = sprintf('PE guestStoichiometry0 opt=%g', guestStoichiometry0);
+plot(guestStoichiometry0, fpeOpt(1), '.', 'markersize', 12, 'color', color, 'displayname', dn);
+plotline = @(x) line([x, x], [4, 5], 'color', color, style{:}, 'handlevisibility', 'off');
+plotline(guestStoichiometry0);
+plotline(guestStoichiometry100);
 text(guestStoichiometry0, 4.5, sprintf('PE guestStoichiometry0 opt=%g', guestStoichiometry0), 'color', color, right{:});
 text(guestStoichiometry100, 4.5, sprintf('PE guestStoichiometry100 opt=%g', guestStoichiometry100), 'color', color, right{:});
 
@@ -296,11 +301,36 @@ fprintf('thetaPEopt(end): %1.5f\n', thetaPEopt(end));
 
 %% 2b. Plot calibrated OCPs with stretch (PE)
 
+guestStoichiometry0 = jsonInit.(pe).(co).(am).(itf).guestStoichiometry0;
+guestStoichiometry100 = jsonInit.(pe).(co).(am).(itf).guestStoichiometry100;
+x = linspace(guestStoichiometry0, guestStoichiometry100, 1000);
+y = computeOCPcathodeH0b(x, [], 1);
+
+guestStoichiometry0 = jsonOpt.(pe).(co).(am).(itf).guestStoichiometry0;
+guestStoichiometry100 = jsonOpt.(pe).(co).(am).(itf).guestStoichiometry100;
+xopt = linspace(guestStoichiometry0, guestStoichiometry100, numel(y));
+
+color = colors(2,:);
+plot(xopt, y, 'color', color, 'displayname', 'PE computeOCP over opt guestStoichiometry')
+plotline = @(x) line([x, x], [4, 5], 'color', color, style{:}, 'handlevisibility', 'off');
+plotline(guestStoichiometry0);
+plotline(guestStoichiometry100);
+%line([guestStoichiometry0, guestStoichiometry0], [4, 5], 'color', color, style{:}, 'handlevisibility', 'off');
+%line([guestStoichiometry100, guestStoichiometry100], [4, 5], 'color', color, style{:});
+text(guestStoichiometry0, 4.5, sprintf('PE guestStoichiometry0 opt=%g', guestStoichiometry0), 'color', color, right{:});
+text(guestStoichiometry100, 4.5, sprintf('PE guestStoichiometry100 opt=%g', guestStoichiometry100), 'color', color, right{:});
 
 
 
 
-%% Same for NE
+
+
+
+
+
+
+
+%% Same for NE (not finished)
 
 % Discharge: NE x decreases, voltage decreases, SOC of battery decreases
 
