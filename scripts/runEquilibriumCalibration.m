@@ -46,12 +46,12 @@ expdata = struct('time' , datasmooth.time{1} * hour                           , 
 
 input = struct('DRate'    , expdata.DRate, ...
                'totalTime', expdata.time(end));
-output0 = runHydra(input, 'clearSimulation', false);
-css0 = CellSpecificationSummary(output0.model);
+outputInit = runHydra(input, 'clearSimulation', false);
+css0 = CellSpecificationSummary(outputInit.model);
 
 %% Setup and run optimization
 
-ecs = EquilibriumCalibrationSetup2222(output0.model, expdata);
+ecs = EquilibriumCalibrationSetup2222(outputInit.model, expdata);
 ecs = ecs.setupCalibrationCase(1, 'np_ratio', css0.NPratio);
 
 doipopt = false;
@@ -85,7 +85,7 @@ fprintf('obj val=%1.2f (%1.2f), iter=%d\n', vopt, v0, iter);
 
 %% Extract parameters
 
-%jsonstructEC = EC.extractAlpha(output0.model, Xopt);
+%jsonstructEC = EC.extractAlpha(outputInit.model, Xopt);
 ecs.totalAmountVariableChoice = 'volumeFraction';
 jsonstructEC = ecs.exportParameters(Xopt);
 filename = fullfile(getHydra0Dir(), 'parameters', 'equilibrium-calibration-parameters.json');
@@ -109,7 +109,7 @@ hold on
 plot(expdata.time/hour, expdata.U, 'k--', 'displayname', 'Experiment 0.05 C');
 plot(expdata.time/hour, fcomp(expdata.time, X0), 'color', colors(3,:), 'displayname', 'Initial data');
 plot(expdata.time/hour, fcomp(expdata.time, Xopt), 'color', colors(4,:), 'displayname', 'After cell balancing');
-%plot(getTime(output0.states)/hour, getE(output0.states), 'color', colors(1,:), 'displayname', 'P2D initial guess');
+%plot(getTime(outputInit.states)/hour, getE(outputInit.states), 'color', colors(1,:), 'displayname', 'P2D initial guess');
 plot(getTime(outputOpt.states)/hour, getE(outputOpt.states), 'color', colors(2,:), 'displayname', 'P2D after cell balancing');
 xlabel 'Time  /  h';
 ylabel 'E  /  V';
@@ -146,6 +146,142 @@ ylabel 'Voltage  /  V';
 legend('location', 'sw')
 
 title('Cell balancing in time domain');
+
+%% Plot cell balancing over capacity
+
+valsInit = ecs.getDefaultValue(); %% !! not ecs.updateGuestStoichiometries(X0, 'includeGuestStoichiometry0', true);
+[valsOpt, valsNotTruncated] = ecs.updateGuestStoichiometries(Xopt, 'includeGuestStoichiometry0', true);
+
+jsonInit = outputInit.jsonstruct;
+jsonOpt = outputOpt.jsonstruct;
+
+minmax = @(x) [min(x), max(x), x(1), x(end)];
+
+% expdata
+t = expdata.time;
+I = expdata.I;
+qexp = cumtrapz(t, I*ones(size(t)));
+
+% ne
+mneInit = valsInit.(ne).totalAmount*ecs.F;
+xneInit = valsInit.(ne).guestStoichiometry100 - qexp / mneInit;
+yneInit = computeOCPanodeH0b(xneInit, [], 1);
+
+mneOpt = valsOpt.(ne).totalAmount*ecs.F;
+xneOpt = valsOpt.(ne).guestStoichiometry100 - qexp / mneOpt;
+yneOpt = computeOCPanodeH0b(xneOpt, [], 1);
+
+% pe
+mpeInit = valsInit.(pe).totalAmount*ecs.F;
+xpeInit = valsInit.(pe).guestStoichiometry100 + qexp / mpeInit;
+ypeInit = computeOCPcathodeH0b(xpeInit, [], 1);
+
+mpeOpt = valsOpt.(pe).totalAmount*ecs.F;
+xpeOpt = valsOpt.(pe).guestStoichiometry100 + qexp / mpeOpt;
+ypeOpt = computeOCPcathodeH0b(xpeOpt, [], 1);
+
+% ocp
+ocpInit = ypeInit - yneInit;
+ocpOpt = ypeOpt - yneOpt;
+
+% plot
+colors = lines(4);
+figure; hold on; grid on; legend
+plot(qexp/hour, expdata.U, 'k--', 'displayname', 'Experiment 0.05 C');
+plot(qexp/hour, yneInit, '--', 'color', colors(1,:), 'displayname', 'NE init');
+plot(qexp/hour, ypeInit, '--', 'color', colors(2,:), 'displayname', 'PE init');
+plot(qexp/hour, ocpInit, '--', 'color', colors(3,:), 'displayname', 'OCP init');
+
+xlabel 'Capacity  /  Ah';
+ylabel 'Voltage  /  V';
+
+%%
+plot(qexp/hour, yneOpt, '-', 'color', colors(1,:), 'displayname', 'NE opt');
+plot(qexp/hour, ypeOpt, '-', 'color', colors(2,:), 'displayname', 'PE opt');
+plot(qexp/hour, ocpOpt, '-', 'color', colors(3,:), 'displayname', 'OCP opt');
+
+%% Plot cell balancing vs capacity calculated using guestStoichiometries: cannot subtract
+
+vals0 = ecs.getDefaultValue(); %% !! not ecs.updateGuestStoichiometries(X0, 'includeGuestStoichiometry0', true);
+[valsOpt, valsNotTruncated] = ecs.updateGuestStoichiometries(Xopt, 'includeGuestStoichiometry0', true);
+
+jsonInit = outputInit.jsonstruct;
+jsonOpt = outputOpt.jsonstruct;
+
+minmax = @(x) [min(x), max(x), x(1), x(end)];
+
+% expdata
+t = expdata.time;
+I = expdata.I;
+qexp = cumtrapz(t, I*ones(size(t)));
+
+% ne
+% xne = linspace(vals0.(ne).guestStoichiometry100, vals0.(ne).guestStoichiometry0, 1000)';
+% yne = computeOCPanodeH0b(xne, [], 1);
+
+% mne = vals0.(ne).totalAmount*ecs.F;
+% xne0 = vals0.(ne).guestStoichiometry100 - qexp / mne;
+% disp(minmax(xne0));
+% yne0 = computeOCPanodeH0b(xne0, [], 1);
+% qne0 = (mne * (vals0.(ne).guestStoichiometry100 - xne0));
+
+mne = vals0.(ne).totalAmount*ecs.F;
+xne0 = linspace(vals0.(ne).guestStoichiometry100, vals0.(ne).guestStoichiometry0, 1000)';
+disp(minmax(xne0));
+yne0 = computeOCPanodeH0b(xne0, [], 1);
+qne0 = xne0*mne;
+disp(minmax(qne0));
+
+% pe
+mpe = vals0.(pe).totalAmount*ecs.F;
+%xpe0 = vals0.(pe).guestStoichiometry100 + qexp / mpe;
+xpe0 = linspace(vals0.(pe).guestStoichiometry0, vals0.(pe).guestStoichiometry100, 1000)';
+disp(minmax(xpe0));
+ype0 = computeOCPcathodeH0b(xpe0, [], 1);
+%qpe0 = (mpe * (xpe0 - vals0.(pe).guestStoichiometry100));
+qpe0 = xpe0*mpe;
+disp(minmax(qpe0));
+
+% ocp
+ocp = ype0 - yne0;
+
+% plot
+colors = lines(4);
+
+figure; hold on; grid on; legend
+plot(qexp/hour, expdata.U, 'k--', 'displayname', 'Experiment 0.05 C');
+plot(qne0/hour, yne0, '--', 'color', colors(1,:), 'displayname', 'NE init');
+plot(qpe0/hour, ype0, '--', 'color', colors(2,:), 'displayname', 'PE init');
+%plot(qocp/hour, ype0 - yne0, '--', 'color', colors(3,:), 'displayname', 'OCP init');
+
+xlabel 'Capacity  /  Ah';
+ylabel 'Voltage  /  V';
+
+return
+
+% mne = valsOpt.(ne).totalAmount*ecs.F;
+% %xne0 = q / mne + valsOpt.(ne).guestStoichiometry0;
+% xneOpt = valsOpt.(ne).guestStoichiometry100 - qexp / mne;
+% yneOpt = computeOCPanodeH0b(xneOpt, [], 1);
+
+% mpe = valsOpt.(pe).totalAmount*ecs.F;
+% xpeOpt = valsOpt.(pe).guestStoichiometry100 + qexp / mpe;
+% ypeOpt = computeOCPcathodeH0b(xpeOpt, [], 1);
+
+% fprintf('opt np ratio: %g\n', mpe/mne);
+
+% colors = lines(4);
+
+% plot(q/hour, yneOpt, '-', 'color', colors(1,:), 'displayname', 'NE Opt');
+% plot(q/hour, ypeOpt, '-', 'color', colors(2,:), 'displayname', 'PE Opt');
+% plot(q/hour, ypeOpt - yneOpt, '-', 'color', colors(3,:), 'displayname', 'OCP Opt');
+
+
+
+
+% return
+
+
 
 %% plot cell balancing capacity domain: only scale x axis by current
 
@@ -209,7 +345,7 @@ right = {'horizontalalignment', 'right', 'fontsize', fsz, 'handlevisibility', 'o
 %vals0 = ecs.updateGuestStoichiometries(X0, 'includeGuestStoichiometry0', true);
 %[valsopt, valsNotTruncated] = ecs.updateGuestStoichiometries(Xopt, 'includeGuestStoichiometry0', true);
 
-jsonInit = output0.jsonstruct;
+jsonInit = outputInit.jsonstruct;
 jsonOpt = outputOpt.jsonstruct;
 
 t = expdata.time;
@@ -345,7 +481,7 @@ right = {'horizontalalignment', 'right', 'fontsize', fsz, 'handlevisibility', 'o
 %vals0 = ecs.updateGuestStoichiometries(X0, 'includeGuestStoichiometry0', true);
 %[valsopt, valsNotTruncated] = ecs.updateGuestStoichiometries(Xopt, 'includeGuestStoichiometry0', true);
 
-jsonInit = output0.jsonstruct;
+jsonInit = outputInit.jsonstruct;
 jsonOpt = outputOpt.jsonstruct;
 
 t = expdata.time;
@@ -447,7 +583,7 @@ plot(thetane(end), fne(end), 'x', 'color', colors(4,:), 'handlevisibility', 'off
 % include guest stoichiometries at start and end
 plotGuestStoichiometries = true;
 if plotGuestStoichiometries
-    json0 = output0.jsonstruct;
+    jsonInit = outputInit.jsonstruct;
     jsonOpt = outputOpt.jsonstruct;
 
     fsz = 14;
@@ -455,8 +591,8 @@ if plotGuestStoichiometries
     left = {'horizontalalignment', 'left', 'fontsize', fsz, 'handlevisibility', 'off'};
     right = {'horizontalalignment', 'right', 'fontsize', fsz, 'handlevisibility', 'off'};
 
-    theta0 = json0.(ne).(co).(am).(itf).guestStoichiometry0;
-    theta100 = json0.(ne).(co).(am).(itf).guestStoichiometry100;
+    theta0 = jsonInit.(ne).(co).(am).(itf).guestStoichiometry0;
+    theta100 = jsonInit.(ne).(co).(am).(itf).guestStoichiometry100;
     line([theta0, theta0], [0, 1], 'color', colors(2,:), style{:});
     line([theta100, theta100], [0, 1], 'color', colors(2,:), style{:});
     text(theta0, 0.1, 'NE theta0 init', 'color', colors(2,:), right{:});
@@ -525,7 +661,7 @@ plot(thetane(end), fne(end), 'x', 'color', colors(4,:), 'handlevisibility', 'off
 % include guest stoichiometries at start and end
 plotGuestStoichiometries = true;
 if plotGuestStoichiometries
-    json0 = output0.jsonstruct;
+    jsonInit = outputInit.jsonstruct;
     jsonOpt = outputOpt.jsonstruct;
 
     fsz = 14;
@@ -533,16 +669,16 @@ if plotGuestStoichiometries
     left = {'horizontalalignment', 'left', 'fontsize', fsz, 'handlevisibility', 'off'};
     right = {'horizontalalignment', 'right', 'fontsize', fsz, 'handlevisibility', 'off'};
 
-    theta0 = json0.(pe).(co).(am).(itf).guestStoichiometry0;
-    theta100 = json0.(pe).(co).(am).(itf).guestStoichiometry100;
+    theta0 = jsonInit.(pe).(co).(am).(itf).guestStoichiometry0;
+    theta100 = jsonInit.(pe).(co).(am).(itf).guestStoichiometry100;
     line([theta0, theta0], [4, 5], 'color', colors(1,:), style{:});
     line([theta100, theta100], [4, 5], 'color', colors(1,:), style{:});
     text(theta0, 4.1, 'PE theta0 init', 'color', colors(1,:), left{:});
     text(theta100, 4.1, 'PE theta100 init', 'color', colors(1,:), left{:});
 
     theta0 = valsNotTruncated.(ne).guestStoichiometry0;
-    %theta0 = json0.(ne).(co).(am).(itf).guestStoichiometry0;
-    theta100 = json0.(ne).(co).(am).(itf).guestStoichiometry100;
+    %theta0 = jsonInit.(ne).(co).(am).(itf).guestStoichiometry0;
+    theta100 = jsonInit.(ne).(co).(am).(itf).guestStoichiometry100;
     line([theta0, theta0], [0, 1], 'color', colors(2,:), style{:});
     line([theta100, theta100], [0, 1], 'color', colors(2,:), style{:});
     text(theta0, 0.1, 'NE theta0 init', 'color', colors(2,:), right{:});
@@ -731,21 +867,21 @@ plot(vg(2:end), -derivative(qg, vg), 'o-')
 % title(qdvopts);
 
 %{
-Copyright 2021-2024 SINTEF Industry, Sustainable Energy Technology
-and SINTEF Digital, Mathematics & Cybernetics.
+  Copyright 2021-2024 SINTEF Industry, Sustainable Energy Technology
+  and SINTEF Digital, Mathematics & Cybernetics.
 
-This file is part of The Battery Modeling Toolbox BattMo
+  This file is part of The Battery Modeling Toolbox BattMo
 
-BattMo is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
+  BattMo is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
 
-BattMo is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+  BattMo is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with BattMo.  If not, see <http://www.gnu.org/licenses/>.
+  You should have received a copy of the GNU General Public License
+  along with BattMo.  If not, see <http://www.gnu.org/licenses/>.
 %}
