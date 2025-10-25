@@ -200,6 +200,10 @@ plot(qexp/hour, yneOpt, '-', 'color', colors(1,:), 'displayname', 'NE opt');
 plot(qexp/hour, ypeOpt, '-', 'color', colors(2,:), 'displayname', 'PE opt');
 plot(qexp/hour, ocpOpt, '-', 'color', colors(3,:), 'displayname', 'OCP opt');
 
+axis tight
+breakyaxis([1, 3]);
+
+
 %% Plot cell balancing vs capacity calculated using guestStoichiometries: cannot subtract
 
 vals0 = ecs.getDefaultValue(); %% !! not ecs.updateGuestStoichiometries(X0, 'includeGuestStoichiometry0', true);
