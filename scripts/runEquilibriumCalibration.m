@@ -122,6 +122,8 @@ if dosave
     exportgraphics(fig, 'cell-balancing.png', 'resolution', 300);
 end
 
+return
+
 
 %% Plot cell balancing time domain
 
@@ -146,7 +148,7 @@ ocp = fpe - fne;
 
 if doextendtime
     % truncate PE to cutoff voltage
-    cutoff = jsonOpt.(ctrl).lowerCutoffVoltage;
+    cutoff = outputOpt.jsonstruct.(ctrl).lowerCutoffVoltage;
     idx = find(fpe0 <= cutoff, 1, 'first');
     tpe0cut = t0(1:idx);
     fpe0cut = fpe0(1:idx);
@@ -189,13 +191,14 @@ I = expdata.I;
 
 doextendtime = true;
 capoverarea = true;
+plotdvdq = true;
 
 if doextendtime
     % extend time for the initial before and after
     T = t(end) - t(1);
     ta = t(1); %-0.1*T;
     tb = t(end)+0.4*T;
-    t0 = linspace(ta, tb, numel(t));
+    t0 = linspace(ta, tb, numel(t))';
 else
     t0 = t;
 end
@@ -204,7 +207,7 @@ q0 = cumtrapz(t0, I*ones(size(t)));
 q = cumtrapz(t, I*ones(size(t)));
 
 if capoverarea
-    area = jsonOpt.Geometry.faceArea / centi^2; % cm^2
+    area = outputOpt.jsonstruct.Geometry.faceArea / centi^2; % cm^2
     q0 = q0 / area / milli;
     q = q / area / milli;
     xlab = 'Capacity / mAh{\cdot}cm^{-2}';
@@ -219,7 +222,7 @@ ocp = fpe - fne;
 
 if doextendtime
     % truncate PE to cutoff voltage
-    cutoff = jsonOpt.(ctrl).lowerCutoffVoltage;
+    cutoff = outputOpt.jsonstruct.(ctrl).lowerCutoffVoltage;
     idx = find(fpe0 <= cutoff, 1, 'first');
     qpe0cut = q0(1:idx);
     fpe0cut = fpe0(1:idx);
@@ -239,7 +242,7 @@ else
 end
 
 figure; hold on; grid on
-plot(q0/hour, expdata.U, 'k--', 'displayname', 'Experiment 0.05 C');
+plot(q/hour, expdata.U, 'k--', 'displayname', 'Experiment 0.05 C');
 plot(qpe0cut/hour, fpe0cut, 'displayname', 'PE init', 'color', colors(1,:), 'linestyle', '--');
 plot(qne0cut/hour, fne0cut, 'displayname', 'NE init', 'color', colors(2,:), 'linestyle', '--');
 plot(qpe0cut/hour, ocp0cut, 'displayname', 'Cell init', 'color', colors(3,:), 'linestyle', '--');
