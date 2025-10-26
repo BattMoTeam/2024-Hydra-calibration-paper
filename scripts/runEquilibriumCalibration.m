@@ -127,22 +127,49 @@ end
 
 t = expdata.time;
 
-% extend time before and after
-T = t(end) - t(1);
-ta = t(1)-0.1*T;
-tb = t(end)+0.4*T;
-t0 = linspace(ta, tb, numel(t));
+doextendtime = true;
+
+if doextendtime
+    % extend time for the initial before and after
+    T = t(end) - t(1);
+    ta = t(1); %-0.1*T;
+    tb = t(end)+0.4*T;
+    t0 = linspace(ta, tb, numel(t));
+else
+    t0 = t;
+end
 
 [~, fpe0, fne0, thetape0, thetane0] = ecs.computeF(t0, X0);
 ocp0 = fpe0 - fne0;
 [~, fpe, fne, thetape, thetane] = ecs.computeF(t, Xopt);
 ocp = fpe - fne;
 
+if doextendtime
+    % truncate PE to cutoff voltage
+    cutoff = jsonOpt.(ctrl).lowerCutoffVoltage;
+    idx = find(fpe0 <= cutoff, 1, 'first');
+    tpe0cut = t0(1:idx);
+    fpe0cut = fpe0(1:idx);
+    ocp0cut = ocp0(1:idx);
+
+    % truncate NE to max opt voltage
+    cutoff = max(fne);
+    idx = find(fne0 >= cutoff, 1, 'first');
+    tne0cut = t0(1:idx);
+    fne0cut = fne0(1:idx);
+else
+    tpe0cut = t0;
+    fpe0cut = fpe0;
+    tne0cut = t0;
+    fne0cut = fne0;
+    ocp0cut = ocp0;
+end
+
 figure; hold on; grid on
 plot(expdata.time/hour, expdata.U, 'k--', 'displayname', 'Experiment 0.05 C');
-plot(t0/hour, fpe0, 'displayname', 'pe init', 'color', colors(1,:), 'linestyle', '--');
-plot(t0/hour, fne0, 'displayname', 'ne init', 'color', colors(2,:), 'linestyle', '--');
-plot(t0/hour, ocp0, 'displayname', 'ocp init', 'color', colors(3,:), 'linestyle', '--');
+plot(tpe0cut/hour, fpe0cut, 'displayname', 'pe init', 'color', colors(1,:), 'linestyle', '--');
+plot(tne0cut/hour, fne0cut, 'displayname', 'ne init', 'color', colors(2,:), 'linestyle', '--');
+plot(tpe0cut/hour, ocp0cut, 'displayname', 'ocp init', 'color', colors(3,:), 'linestyle', '--');
 plot(t/hour, fpe, 'displayname', 'pe opt', 'color', colors(1,:));
 plot(t/hour, fne, 'displayname', 'ne opt', 'color', colors(2,:));
 plot(t/hour, ocp, 'displayname', 'ocp opt', 'color', colors(3,:));
@@ -153,8 +180,8 @@ legend('location', 'sw')
 
 title('Cell balancing in time domain');
 
-%axis tight
-%breakyaxis([1, 3]);
+axis tight
+breakyaxis([1, 3]);
 
 
 %% Plot cell balancing over capacity (this is just a scaling)
