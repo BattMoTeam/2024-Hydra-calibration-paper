@@ -127,16 +127,22 @@ end
 
 t = expdata.time;
 
-[~, fpe0, fne0, thetape0, thetane0] = ecs.computeF(t, X0);
+% extend time before and after
+T = t(end) - t(1);
+ta = t(1)-0.1*T;
+tb = t(end)+0.4*T;
+t0 = linspace(ta, tb, numel(t));
+
+[~, fpe0, fne0, thetape0, thetane0] = ecs.computeF(t0, X0);
 ocp0 = fpe0 - fne0;
 [~, fpe, fne, thetape, thetane] = ecs.computeF(t, Xopt);
 ocp = fpe - fne;
 
 figure; hold on; grid on
 plot(expdata.time/hour, expdata.U, 'k--', 'displayname', 'Experiment 0.05 C');
-plot(t/hour, fpe0, 'displayname', 'pe init', 'color', colors(1,:), 'linestyle', '--');
-plot(t/hour, fne0, 'displayname', 'ne init', 'color', colors(2,:), 'linestyle', '--');
-plot(t/hour, ocp0, 'displayname', 'ocp init', 'color', colors(3,:), 'linestyle', '--');
+plot(t0/hour, fpe0, 'displayname', 'pe init', 'color', colors(1,:), 'linestyle', '--');
+plot(t0/hour, fne0, 'displayname', 'ne init', 'color', colors(2,:), 'linestyle', '--');
+plot(t0/hour, ocp0, 'displayname', 'ocp init', 'color', colors(3,:), 'linestyle', '--');
 plot(t/hour, fpe, 'displayname', 'pe opt', 'color', colors(1,:));
 plot(t/hour, fne, 'displayname', 'ne opt', 'color', colors(2,:));
 plot(t/hour, ocp, 'displayname', 'ocp opt', 'color', colors(3,:));
@@ -147,7 +153,11 @@ legend('location', 'sw')
 
 title('Cell balancing in time domain');
 
-%% Plot cell balancing over capacity
+%axis tight
+%breakyaxis([1, 3]);
+
+
+%% Plot cell balancing over capacity (this is just a scaling)
 
 valsInit = ecs.getDefaultValue(); %% !! not ecs.updateGuestStoichiometries(X0, 'includeGuestStoichiometry0', true);
 [valsOpt, valsNotTruncated] = ecs.updateGuestStoichiometries(Xopt, 'includeGuestStoichiometry0', true);
@@ -162,15 +172,6 @@ t = expdata.time;
 I = expdata.I;
 qexp = cumtrapz(t, I*ones(size(t)));
 
-% ne
-mneInit = valsInit.(ne).totalAmount*ecs.F;
-xneInit = valsInit.(ne).guestStoichiometry100 - qexp / mneInit;
-yneInit = computeOCPanodeH0b(xneInit, [], 1);
-
-mneOpt = valsOpt.(ne).totalAmount*ecs.F;
-xneOpt = valsOpt.(ne).guestStoichiometry100 - qexp / mneOpt;
-yneOpt = computeOCPanodeH0b(xneOpt, [], 1);
-
 % pe
 mpeInit = valsInit.(pe).totalAmount*ecs.F;
 xpeInit = valsInit.(pe).guestStoichiometry100 + qexp / mpeInit;
@@ -180,6 +181,15 @@ mpeOpt = valsOpt.(pe).totalAmount*ecs.F;
 xpeOpt = valsOpt.(pe).guestStoichiometry100 + qexp / mpeOpt;
 ypeOpt = computeOCPcathodeH0b(xpeOpt, [], 1);
 
+% ne
+mneInit = valsInit.(ne).totalAmount*ecs.F;
+xneInit = valsInit.(ne).guestStoichiometry100 - qexp / mneInit;
+yneInit = computeOCPanodeH0b(xneInit, [], 1);
+
+mneOpt = valsOpt.(ne).totalAmount*ecs.F;
+xneOpt = valsOpt.(ne).guestStoichiometry100 - qexp / mneOpt;
+yneOpt = computeOCPanodeH0b(xneOpt, [], 1);
+
 % ocp
 ocpInit = ypeInit - yneInit;
 ocpOpt = ypeOpt - yneOpt;
@@ -188,16 +198,16 @@ ocpOpt = ypeOpt - yneOpt;
 colors = lines(4);
 figure; hold on; grid on; legend
 plot(qexp/hour, expdata.U, 'k--', 'displayname', 'Experiment 0.05 C');
-plot(qexp/hour, yneInit, '--', 'color', colors(1,:), 'displayname', 'NE init');
 plot(qexp/hour, ypeInit, '--', 'color', colors(2,:), 'displayname', 'PE init');
+plot(qexp/hour, yneInit, '--', 'color', colors(1,:), 'displayname', 'NE init');
 plot(qexp/hour, ocpInit, '--', 'color', colors(3,:), 'displayname', 'OCP init');
 
 xlabel 'Capacity  /  Ah';
 ylabel 'Voltage  /  V';
 
-%%
-plot(qexp/hour, yneOpt, '-', 'color', colors(1,:), 'displayname', 'NE opt');
+%
 plot(qexp/hour, ypeOpt, '-', 'color', colors(2,:), 'displayname', 'PE opt');
+plot(qexp/hour, yneOpt, '-', 'color', colors(1,:), 'displayname', 'NE opt');
 plot(qexp/hour, ocpOpt, '-', 'color', colors(3,:), 'displayname', 'OCP opt');
 
 axis tight
