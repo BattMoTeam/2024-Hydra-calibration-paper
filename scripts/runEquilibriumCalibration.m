@@ -178,7 +178,78 @@ xlabel 'Time  /  h';
 ylabel 'Voltage  /  V';
 legend('location', 'sw')
 
-title('Cell balancing in time domain');
+axis tight
+breakyaxis([1, 3]);
+
+%% Plot the same in capacity domain (we know from below that this is
+%% just a scaling)
+
+t = expdata.time;
+I = expdata.I;
+
+doextendtime = true;
+capoverarea = true;
+
+if doextendtime
+    % extend time for the initial before and after
+    T = t(end) - t(1);
+    ta = t(1); %-0.1*T;
+    tb = t(end)+0.4*T;
+    t0 = linspace(ta, tb, numel(t));
+else
+    t0 = t;
+end
+
+q0 = cumtrapz(t0, I*ones(size(t)));
+q = cumtrapz(t, I*ones(size(t)));
+
+if capoverarea
+    area = jsonOpt.Geometry.faceArea / centi^2; % cm^2
+    q0 = q0 / area / milli;
+    q = q / area / milli;
+    xlab = 'Capacity / mAh{\cdot}cm^{-2}';
+else
+    xlab = 'Capacity  /  Ah';
+end
+
+[~, fpe0, fne0] = ecs.computeF(t0, X0);
+ocp0 = fpe0 - fne0;
+[~, fpe, fne] = ecs.computeF(t, Xopt);
+ocp = fpe - fne;
+
+if doextendtime
+    % truncate PE to cutoff voltage
+    cutoff = jsonOpt.(ctrl).lowerCutoffVoltage;
+    idx = find(fpe0 <= cutoff, 1, 'first');
+    qpe0cut = q0(1:idx);
+    fpe0cut = fpe0(1:idx);
+    ocp0cut = ocp0(1:idx);
+
+    % truncate NE to max opt voltage
+    cutoff = max(fne);
+    idx = find(fne0 >= cutoff, 1, 'first');
+    qne0cut = q0(1:idx);
+    fne0cut = fne0(1:idx);
+else
+    qpe0cut = q0;
+    fpe0cut = fpe0;
+    qne0cut = q0;
+    fne0cut = fne0;
+    ocp0cut = ocp0;
+end
+
+figure; hold on; grid on
+plot(q0/hour, expdata.U, 'k--', 'displayname', 'Experiment 0.05 C');
+plot(qpe0cut/hour, fpe0cut, 'displayname', 'PE init', 'color', colors(1,:), 'linestyle', '--');
+plot(qne0cut/hour, fne0cut, 'displayname', 'NE init', 'color', colors(2,:), 'linestyle', '--');
+plot(qpe0cut/hour, ocp0cut, 'displayname', 'Cell init', 'color', colors(3,:), 'linestyle', '--');
+plot(q/hour, fpe, 'displayname', 'PE opt', 'color', colors(1,:));
+plot(q/hour, fne, 'displayname', 'NE opt', 'color', colors(2,:));
+plot(q/hour, ocp, 'displayname', 'Cell opt', 'color', colors(3,:));
+
+xlabel(xlab);
+ylabel 'Voltage  /  V';
+legend('location', 'sw')
 
 axis tight
 breakyaxis([1, 3]);
