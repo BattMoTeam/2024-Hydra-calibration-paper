@@ -257,6 +257,28 @@ legend('location', 'sw')
 axis tight
 breakyaxis([1, 3]);
 
+%%
+
+if plotdvdq
+
+    qnom = expdata.cap;
+    dvdq = @(v, q) -qnom * gradient(v(:)) ./ gradient(q(:));
+
+    figure; hold on; grid on; legend
+    plot(q/hour, dvdq(expdata.U, q0), 'k--', 'displayname', 'Experiment 0.05 C');
+    plot(qpe0cut/hour, dvdq(fpe0cut, qpe0cut), 'displayname', 'PE init', 'color', colors(1,:), 'linestyle', '--');
+    plot(qne0cut/hour, dvdq(fne0cut, qne0cut), 'displayname', 'NE init', 'color', colors(2,:), 'linestyle', '--');
+    plot(qpe0cut/hour, dvdq(ocp0cut, qpe0cut), 'displayname', 'Cell init', 'color', colors(3,:), 'linestyle', '--');
+    plot(q/hour, dvdq(fpe, q), 'displayname', 'PE opt', 'color', colors(1,:));
+    plot(q/hour, dvdq(fne, q), 'displayname', 'NE opt', 'color', colors(2,:));
+    plot(q/hour, dvdq(ocp, q), 'displayname', 'Cell opt', 'color', colors(3,:));
+    xlabel(xlab);
+    ylabel '-Q_0{\cdot}dV/dQ  /  V';
+
+    ylim([-10, 10])
+
+end
+
 
 %% Plot cell balancing over capacity (this is just a scaling)
 
