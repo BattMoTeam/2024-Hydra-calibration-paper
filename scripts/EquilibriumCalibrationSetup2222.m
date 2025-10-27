@@ -511,9 +511,9 @@ classdef EquilibriumCalibrationSetup2222
             % plot(thetape, fpe);
             % drawnow
 
-            % fprintf('minmax theta NE : %g %g\n', min(value(thetane)), max(value(thetane)));
-            % fprintf('minmax theta PE : %g %g\n', min(value(thetape)), max(value(thetape)));
-            % fprintf('\n');
+            fprintf('minmax theta NE : %g %g\n', min(value(thetane)), max(value(thetane)));
+            fprintf('minmax theta PE : %g %g\n', min(value(thetape)), max(value(thetape)));
+            fprintf('\n');
 
         end
 

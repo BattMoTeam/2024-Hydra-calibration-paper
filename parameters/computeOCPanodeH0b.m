@@ -46,7 +46,7 @@ function [OCP, dUdT] = computeOCPanodeH0b(c, ~, cmax)
                   ];
 
     stoc = c/cmax;
-    OCP = interpTable(graphite_ds(:,1), graphite_ds(:,2), stoc);
+    OCP = interpTable(graphite_ds(:,1), graphite_ds(:,2), stoc, 'spline', false);
     dUdT = 0;
 
 end
