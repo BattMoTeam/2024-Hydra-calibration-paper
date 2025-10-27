@@ -197,7 +197,7 @@ if doextendtime
     % extend time for the initial before and after
     T = t(end) - t(1);
     ta = t(1); %-0.1*T;
-    tb = t(end)+0.4*T;
+    tb = t(end) + 0.4*T; % Just make this large and it'll be cut later
     t0 = linspace(ta, tb, numel(t))';
 else
     t0 = t;
@@ -215,22 +215,32 @@ else
     xlab = 'Capacity  /  Ah';
 end
 
-[~, fpe0, fne0] = ecs.computeF(t0, X0);
-ocp0 = fpe0 - fne0;
-[~, fpe, fne] = ecs.computeF(t, Xopt);
-ocp = fpe - fne;
+[ocp0, fpe0, fne0] = ecs.computeF(t0, X0);
+[ocp, fpe, fne] = ecs.computeF(t, Xopt);
+
+% Check ocp ranges
+gne0 = outputInit.jsonstruct.(ne).(co).(am).(itf).guestStoichiometry0;
+gne100 = outputInit.jsonstruct.(ne).(co).(am).(itf).guestStoichiometry100;
+ocpminne = computeOCPanodeH0b(gne100, [], 1);
+ocpmaxne = computeOCPanodeH0b(gne0, [], 1);
+fprintf('NE OCP range from json: [%g, %g]\n', ocpminne, ocpmaxne);
+gpe0 = outputInit.jsonstruct.(pe).(co).(am).(itf).guestStoichiometry0;
+gpe100 = outputInit.jsonstruct.(pe).(co).(am).(itf).guestStoichiometry100;
+ocpminpe = computeOCPcathodeH0b(gpe0, [], 1);
+ocpmaxpe = computeOCPcathodeH0b(gpe100, [], 1);
+fprintf('PE OCP range from json: [%g, %g]\n', ocpminpe, ocpmaxpe);
 
 if doextendtime
     % truncate PE to cutoff voltage
-    cutoff = outputOpt.jsonstruct.(ctrl).lowerCutoffVoltage;
-    idx = find(fpe0 <= cutoff, 1, 'first');
+    %cutoff = outputOpt.jsonstruct.(ctrl).lowerCutoffVoltage;
+    idx = find(fpe0 <= ocpminpe, 1, 'first');
     qpe0cut = q0(1:idx);
     fpe0cut = fpe0(1:idx);
     ocp0cut = ocp0(1:idx);
 
     % truncate NE to max opt voltage
-    cutoff = max(fne);
-    idx = find(fne0 >= cutoff, 1, 'first');
+    %cutoff = max(fne);
+    idx = find(fne0 >= ocpmaxne, 1, 'first');
     qne0cut = q0(1:idx);
     fne0cut = fne0(1:idx);
 else
@@ -278,63 +288,6 @@ if plotdvdq
     ylim([-10, 10])
 
 end
-
-
-%% Plot cell balancing over capacity (this is just a scaling)
-
-valsInit = ecs.getDefaultValue(); %% !! not ecs.updateGuestStoichiometries(X0, 'includeGuestStoichiometry0', true);
-[valsOpt, valsNotTruncated] = ecs.updateGuestStoichiometries(Xopt, 'includeGuestStoichiometry0', true);
-
-jsonInit = outputInit.jsonstruct;
-jsonOpt = outputOpt.jsonstruct;
-
-minmax = @(x) [min(x), max(x), x(1), x(end)];
-
-% expdata
-t = expdata.time;
-I = expdata.I;
-qexp = cumtrapz(t, I*ones(size(t)));
-
-% pe
-mpeInit = valsInit.(pe).totalAmount*ecs.F;
-xpeInit = valsInit.(pe).guestStoichiometry100 + qexp / mpeInit;
-ypeInit = computeOCPcathodeH0b(xpeInit, [], 1);
-
-mpeOpt = valsOpt.(pe).totalAmount*ecs.F;
-xpeOpt = valsOpt.(pe).guestStoichiometry100 + qexp / mpeOpt;
-ypeOpt = computeOCPcathodeH0b(xpeOpt, [], 1);
-
-% ne
-mneInit = valsInit.(ne).totalAmount*ecs.F;
-xneInit = valsInit.(ne).guestStoichiometry100 - qexp / mneInit;
-yneInit = computeOCPanodeH0b(xneInit, [], 1);
-
-mneOpt = valsOpt.(ne).totalAmount*ecs.F;
-xneOpt = valsOpt.(ne).guestStoichiometry100 - qexp / mneOpt;
-yneOpt = computeOCPanodeH0b(xneOpt, [], 1);
-
-% ocp
-ocpInit = ypeInit - yneInit;
-ocpOpt = ypeOpt - yneOpt;
-
-% plot
-colors = lines(4);
-figure; hold on; grid on; legend
-plot(qexp/hour, expdata.U, 'k--', 'displayname', 'Experiment 0.05 C');
-plot(qexp/hour, ypeInit, '--', 'color', colors(2,:), 'displayname', 'PE init');
-plot(qexp/hour, yneInit, '--', 'color', colors(1,:), 'displayname', 'NE init');
-plot(qexp/hour, ocpInit, '--', 'color', colors(3,:), 'displayname', 'OCP init');
-
-xlabel 'Capacity  /  Ah';
-ylabel 'Voltage  /  V';
-
-%
-plot(qexp/hour, ypeOpt, '-', 'color', colors(2,:), 'displayname', 'PE opt');
-plot(qexp/hour, yneOpt, '-', 'color', colors(1,:), 'displayname', 'NE opt');
-plot(qexp/hour, ocpOpt, '-', 'color', colors(3,:), 'displayname', 'OCP opt');
-
-axis tight
-breakyaxis([1, 3]);
 
 
 %% Plot cell balancing vs capacity calculated using guestStoichiometries: cannot subtract
@@ -1002,6 +955,170 @@ plot(vg(2:end), -derivative(qg, vg), 'o-')
 % plot(vg0, dqdv0, 'displayname', 'dQ/dV 0', 'color', colors(1,:), 'linestyle', '--');
 % plot(vg, dqdv, 'displayname', 'dQ/dV opt', 'color', colors(2,:));
 % title(qdvopts);
+
+%% test
+
+t = expdata.time;
+
+[f0,fpe0,fne0, thetape0, thetane0] = ecs.computeF(t, X0);
+[f,fpe,fne, thetape, thetane] = ecs.computeF(t, Xopt);
+
+figure; hold on; grid on; legend
+plot(thetane0, fne0, '--', 'displayname', 'fne init')
+plot(thetape0, fpe0, '--', 'displayname', 'fpe init')
+plot(thetane, fne, ':', 'displayname', 'fne opt')
+plot(thetape, fpe, ':', 'displayname', 'fpe opt')
+xlabel 'Stoichiometry / -'
+
+figure; hold on; grid on; legend
+plot(t/hour, fne0, '--', 'displayname', 'fne init')
+%plot(t/hour, fpe0, '--', 'displayname', 'fpe init')
+plot(t/hour, fne, 'displayname', 'fne opt')
+%plot(t/hour, fpe, 'displayname', 'fpe opt')
+plot(t/hour, f, 'displayname', 'f = fpe - fne opt')
+plot(expdata.time/hour, expdata.U, 'k:', 'displayname', 'U exp')
+xlabel 'Time / h'
+
+% Plot over longer time
+T = t(end) - t(1);
+ta = t(1)-0.1*T;
+tb = t(end)+0.4*T;
+tlong = linspace(ta, tb, numel(t))';
+[~,~,fnelong] = ecs.computeF(tlong, X0);
+plot(tlong/hour, fnelong, 'm:', 'displayname', 'fne long')
+
+% Test shift the longer time plot to the left to match end point
+idx = find(fnelong > fne(end), 1, 'first');
+dt = tlong(idx) - t(end);
+tshift = tlong - dt;
+%plot(tshift/hour, fnelong, 'g:', 'displayname', 'fne shifted')
+
+% Cut the long data such that the voltage >= 0 and ends at maximum
+% voltage from the OCP
+nemaxvoltage = computeOCPanodeH0b(0, [], 1);
+idx = find(fnelong >= nemaxvoltage, 1, 'first');
+tcut = tshift(1:idx);
+idx = find(fnelong > 0, 1, 'first');
+tcut = tcut(idx:end);
+fnecut = fnelong(idx:idx+numel(tcut)-1);
+plot(tcut/hour, fnecut, 'c:', 'displayname', 'fne cut')
+
+%%
+
+t = expdata.time;
+I = expdata.I;
+
+% Extend time (to be cut later)
+assert(all(diff(t) > 0), 'Time data must be strictly increasing');
+T = t(end) - t(1);
+tlong = linspace(t(1), t(end) + 0.4*T, numel(t))';
+
+% Capacities over time
+qlong = cumtrapz(tlong, I*ones(size(tlong)));
+q = cumtrapz(t, I*ones(size(t)));
+
+% Cell and half-cell OCPs
+[ocp0, fpe0, fne0] = ecs.computeF(tlong, X0);
+[ocp, fpe, fne] = ecs.computeF(t, Xopt);
+
+% Check ranges
+gne0 = outputInit.jsonstruct.(ne).(co).(am).(itf).guestStoichiometry0;
+gne100 = outputInit.jsonstruct.(ne).(co).(am).(itf).guestStoichiometry100;
+ocpminne = computeOCPanodeH0b(gne100, [], 1);
+ocpmaxne = computeOCPanodeH0b(gne0, [], 1);
+fprintf('NE OCP range from json: [%g, %g]\n', ocpminne, ocpmaxne);
+gpe0 = outputInit.jsonstruct.(pe).(co).(am).(itf).guestStoichiometry0;
+gpe100 = outputInit.jsonstruct.(pe).(co).(am).(itf).guestStoichiometry100;
+ocpminpe = computeOCPcathodeH0b(gpe0, [], 1);
+ocpmaxpe = computeOCPcathodeH0b(gpe100, [], 1);
+fprintf('PE OCP range from json: [%g, %g]\n', ocpminpe, ocpmaxpe);
+
+% Truncate the OCPs
+idx = find(fpe0 <= ocpminpe, 1, 'first');
+qpe0cut = qlong(1:idx);
+fpe0cut = fpe0(1:idx);
+ocp0cut = ocp0(1:idx);
+idx = find(fne0 >= ocpmaxne, 1, 'first');
+qne0cut = qlong(1:idx);
+fne0cut = fne0(1:idx);
+
+% Plot
+colors = lines(3);
+qscale = @(x) x / milli / outputInit.jsonstruct.Geometry.faceArea * centi^2 / hour;
+
+%figure;
+fig = figure('Units', 'inches', 'Position', [0.1, 0.1, 8, 6]);
+
+hold on; legend('location', 'sw');
+
+plot(qscale(qne0cut), fne0cut, 'displayname', 'Graphite init', 'color', colors(1,:), 'linestyle', '--');
+plot(qscale(qpe0cut), fpe0cut, 'displayname', 'LNMO init', 'color', colors(2,:), 'linestyle', '--');
+plot(qscale(qpe0cut), ocp0cut, 'displayname', 'Full Cell init', 'color', colors(3,:), 'linestyle', '--');
+
+% Shift and truncate NE
+tnelong = linspace(t(1) - 0.4*T, tlong(end), numel(tlong))';
+[~, ~, fnelong] = ecs.computeF(tnelong, Xopt);
+qnelong = cumtrapz(tnelong, I*ones(size(tnelong))) - trapz([tnelong(1), t(1)], I*ones(2,1));
+idx = find(fnelong >= ocpmaxne, 1, 'first');
+qnelong = qnelong(1:idx);
+fnelong = fnelong(1:idx);
+idx = find(fnelong >= 0, 1, 'first');
+qnelong = qnelong(idx:end);
+fnelong = fnelong(idx:end);
+
+% Plot calibrated (shift NE)
+plot(qscale(qnelong), fnelong, 'displayname', 'Graphite opt', 'color', colors(1,:));
+%plot(qscale(q), fne, 'displayname', 'test');
+plot(qscale(q), fpe, 'displayname', 'LNMO opt', 'color', colors(2,:));
+plot(qscale(q), ocp, 'displayname', 'Full Cell opt', 'color', colors(3,:), 'linestyle', '-');
+plot(qscale(q), expdata.U, 'k:', 'displayname', 'Experiment 0.05 C');
+xlabel 'Capacity  /  mAh cm^{-2}';
+ylabel 'Voltage  /  V';
+
+axis tight;
+breakyaxis([1.5, 3]);
+
+%% Corresponding dQ/dV plot (need ocp spline)
+qnom = expdata.cap;
+dvdq = @(v, q) -qnom * gradient(v(:)) ./ gradient(q(:));
+
+%figure;
+fig = figure('Units', 'inches', 'Position', [0.1, 0.1, 8, 6]);
+
+hold on;
+
+qexp = qscale(q);
+dvdqexp = dvdq(expdata.U, q);
+n = 1;
+plot(qexp(1:n:end), dvdqexp(1:n:end), 'k-', 'displayname', 'Experiment 0.05 C');
+
+plot(qscale(qne0cut), -dvdq(fne0cut, qne0cut), 'displayname', 'Graphite init', 'color', colors(1,:), 'linestyle', '--');
+plot(qscale(qpe0cut), dvdq(fpe0cut, qpe0cut), 'displayname', 'LNMO init', 'color', colors(2,:), 'linestyle', '--');
+plot(qscale(qpe0cut), dvdq(ocp0cut, qpe0cut), 'displayname', 'Full Cell init', 'color', colors(3,:), 'linestyle', '--');
+
+plot(qscale(qnelong), -dvdq(fnelong, qnelong), 'displayname', 'Graphite opt', 'color', colors(1,:));
+%plot(qscale(q), dvdq(fne, q), 'displayname', 'test');
+plot(qscale(q), dvdq(fpe, q), 'displayname', 'LNMO opt', 'color', colors(2,:));
+plot(qscale(q), dvdq(ocp, q), 'displayname', 'Full Cell opt', 'color', colors(3,:), 'linestyle', '-');
+
+xlabel 'Capacity  /  mAh cm^{-2}';
+ylabel '-Q_0{\cdot}dV/dQ  /  V';
+
+axis tight;
+ylim([0, 25]);
+
+% plot(q/hour, dvdq(expdata.U, q0), 'k--', 'displayname', 'Experiment 0.05 C');
+% plot(qpe0cut/hour, dvdq(fpe0cut, qpe0cut), 'displayname', 'PE init', 'color', colors(1,:), 'linestyle', '--');
+% plot(qne0cut/hour, dvdq(fne0cut, qne0cut), 'displayname', 'NE init', 'color', colors(2,:), 'linestyle', '--');
+% plot(qpe0cut/hour, dvdq(ocp0cut, qpe0cut), 'displayname', 'Cell init', 'color', colors(3,:), 'linestyle', '--');
+% plot(q/hour, dvdq(fpe, q), 'displayname', 'PE opt', 'color', colors(1,:));
+% plot(q/hour, dvdq(fne, q), 'displayname', 'NE opt', 'color', colors(2,:));
+% plot(q/hour, dvdq(ocp, q), 'displayname', 'Cell opt', 'color', colors(3,:));
+% xlabel(xlab);
+% ylabel '-Q_0{\cdot}dV/dQ  /  V';
+
+% ylim([-10, 10])
+
 
 %{
   Copyright 2021-2024 SINTEF Industry, Sustainable Energy Technology
