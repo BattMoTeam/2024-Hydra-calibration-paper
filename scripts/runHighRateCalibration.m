@@ -49,8 +49,13 @@ cap       = computeCellCapacity(outputCap.model);
 % Diffusion must be a scalar when calibrated
 % neD = mean(computeDanodeH0b(linspace(0, 1, 100)));
 % peD = mean(computeDcathodeH0b(linspace(0.14, 1, 100)));
-neD = 1e-14;
-peD = 1e-14;
+
+% Both electrodes with Ds = 1e-14
+% Graphite: Ds= 1e-13 and LNMO: Ds=1e-14
+% neD = 1e-13;
+% peD = 1e-14;
+neD = [];
+peD = [];
 
 % Initial guess
 input0 = struct('DRate'        , expdata.I / cap * hour, ...
@@ -93,8 +98,8 @@ if debug
     figure; hold on; grid on;
     plot(expdata.time/hour, expdata.U, 'k--');
     plot(getTime(statesExp)/hour, getE(statesExp));
-    xlabel('time / h')
-    ylabel('potential / V')
+    xlabel('Time / h')
+    ylabel('Potential / V')
     title('statesExp')
     drawnow
 end
@@ -197,6 +202,8 @@ ylim([3.45, 4.9])
 
 dosave = false;
 if dosave
+    neD = output0.model.(ne).(co).(am).(sd).referenceDiffusionCoefficient;
+    peD = output0.model.(pe).(co).(am).(sd).referenceDiffusionCoefficient;
     exportgraphics(fig, sprintf('high-rate-calibration-%g-%g.png', neD, peD), 'resolution', 300)
 end
 
