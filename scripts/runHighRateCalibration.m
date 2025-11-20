@@ -186,6 +186,16 @@ disp(tau0);
 tau = tortuosity(outputOpt.model);
 disp(tau);
 
+%% Save
+
+neD = output0.model.(ne).(co).(am).(sd).referenceDiffusionCoefficient;
+peD = output0.model.(pe).(co).(am).(sd).referenceDiffusionCoefficient;
+
+dosavemodel = true;
+if dosavemodel
+    save(sprintf('high-rate-calibrated-outputOpt-%g-%g.mat', neD, peD), 'outputOpt');
+end
+
 %% Plot
 
 colors = lines(2);
@@ -202,8 +212,6 @@ ylim([3.45, 4.9])
 
 dosave = false;
 if dosave
-    neD = output0.model.(ne).(co).(am).(sd).referenceDiffusionCoefficient;
-    peD = output0.model.(pe).(co).(am).(sd).referenceDiffusionCoefficient;
     exportgraphics(fig, sprintf('high-rate-calibration-%g-%g.png', neD, peD), 'resolution', 300)
 end
 
