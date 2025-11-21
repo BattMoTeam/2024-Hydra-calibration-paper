@@ -171,6 +171,11 @@ filename = fullfile(getHydra0Dir(), 'parameters', 'high-rate-calibration-paramet
 writeJsonStruct(jsonstructHRC, filename);
 printer(jsonstructHRC);
 
+neD = output0.model.(ne).(co).(am).(sd).referenceDiffusionCoefficient;
+peD = output0.model.(pe).(co).(am).(sd).referenceDiffusionCoefficient;
+filename = fullfile(getHydra0Dir(), 'parameters', sprintf('high-rate-calibration-parameters-%g-%g.json', neD, peD));
+writeJsonStruct(jsonstructHRC, filename);
+
 %% Run model with calibrated parameters
 
 inputOpt = struct('DRate'         , expdata.I / cap * hour    , ...
