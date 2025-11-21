@@ -52,10 +52,10 @@ cap       = computeCellCapacity(outputCap.model);
 
 % Both electrodes with Ds = 1e-14
 % Graphite: Ds= 1e-13 and LNMO: Ds=1e-14
-% neD = 1e-13;
-% peD = 1e-14;
-neD = [];
-peD = [];
+neD = 1e-13;
+peD = 1e-14;
+% neD = [];
+% peD = [];
 
 % Initial guess
 input0 = struct('DRate'        , expdata.I / cap * hour, ...
@@ -109,7 +109,8 @@ simulatorSetup = struct('model', output0.model, ...
                         'state0', output0.initstate);
 
 % Setup parameters to be calibrated
-HRC = HighRateCalibration(simulatorSetup);
+includeElyte = true;
+HRC = HighRateCalibration(simulatorSetup, includeElyte);
 parameters = HRC.getParams();
 
 % Objective function
@@ -142,6 +143,7 @@ if debug
     assert(all(abs(gad) > 0));
     assert(all(abs(gnum) > 0));
     assert(norm((gad-gnum)./gnum, 'inf') < 1e-3);
+
 end
 
 %% Run optimization
@@ -193,7 +195,7 @@ peD = output0.model.(pe).(co).(am).(sd).referenceDiffusionCoefficient;
 
 dosavemodel = true;
 if dosavemodel
-    save(sprintf('high-rate-calibrated-outputOpt-%g-%g.mat', neD, peD), 'outputOpt');
+    save(sprintf('high-rate-calibrated-outputOpt-%g-%g.mat', neD, peD));
 end
 
 %% Plot

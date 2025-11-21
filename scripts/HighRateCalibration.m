@@ -13,14 +13,19 @@ classdef HighRateCalibration
     methods
 
 
-        function HRC = HighRateCalibration(simulatorSetup)
+        function HRC = HighRateCalibration(simulatorSetup, includeElyte)
 
-            ne  = 'NegativeElectrode';
-            pe  = 'PositiveElectrode';
-            co  = 'Coating';
-            itf = 'Interface';
-            sd  = 'SolidDiffusion';
-            am  = 'ActiveMaterial';
+            if nargin < 2
+                includeElyte = false;
+            end
+
+            ne    = 'NegativeElectrode';
+            pe    = 'PositiveElectrode';
+            co    = 'Coating';
+            itf   = 'Interface';
+            sd    = 'SolidDiffusion';
+            am    = 'ActiveMaterial';
+            elyte = 'Electrolyte';
 
             eldes = {ne, pe};
 
@@ -36,7 +41,7 @@ classdef HighRateCalibration
                                              simulatorSetup, ...
                                              'name'     , sprintf('%s_vsa', elde), ...
                                              'belongsTo', 'model'                , ...
-                                             'boxLims'  , [1e4, 1e7]             , ...
+                                             'boxLims'  , [1e4, 1e8]             , ...
                                              'location' , {elde, co, am, itf, 'volumetricSurfaceArea'});
 
                 HRC.stdParams = addParameter(HRC.stdParams, ...
@@ -56,6 +61,16 @@ classdef HighRateCalibration
                                              'setfun', @(model, ~, v) setBruggeman(model, v), ...
                                              'location', {[{ne, co, 'bruggemanCoefficient'}; ...
                                                            {pe, co, 'bruggemanCoefficient'}]});
+
+            if includeElyte
+                HRC.stdParams = addParameter(HRC.stdParams, ...
+                                             simulatorSetup, ...
+                                             'name'     , 'elyte_bruggman', ...
+                                             'belongsTo', 'model'                           , ...
+                                             'boxLims'  , [0.1, 10]                         , ...
+                                             'scaling'  , 'linear'                          , ...
+                                             'location' , {elyte, 'bruggemanCoefficient'});
+            end
 
             % Convert spec to ModelParameter instances
             HRC.customParams = cell(numel(HRC.customParamsSpec), 1);
@@ -162,6 +177,25 @@ function model = setBruggeman(model, vals)
 
 end
 
+
+function v = getElyteBruggeman(model)
+
+    elyte = 'Electrolyte';
+    v = model.(elyte).bruggemanCoefficient;
+
+end
+
+
+function model = setElyteBruggeman(model, val)
+
+    assert(~model.use_thermal);
+
+    elyte = 'Electrolyte';
+
+    % Set value
+    model.(elyte).bruggemanCoefficient = val;
+
+end
 
 %{
 Copyright 2021-2024 SINTEF Industry, Sustainable Energy Technology
