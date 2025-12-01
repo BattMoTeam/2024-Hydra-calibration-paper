@@ -66,17 +66,20 @@
             "type": "function"
           },
           "saturationConcentration": 31360,
-          "volumetricSurfaceArea": 1.54e6
+          "volumetricSurfaceArea": 1540000.0
         },
         "SolidDiffusion": {
           "activationEnergyOfDiffusion": 13820.0,
           "referenceDiffusionCoefficient": 1e-12,
-          "particleRadius": 1.63e-05
+          "particleRadius": 1.63e-05,
+	  "N": 10
         },
         "density": 2250,
         "diffusionModelType": "full",
         "massFraction": 0.96
       },
+      "N": 10,
+      "thickness": 5.65e-05,
       "bruggemanCoefficient": 3.46,
       "electronicConductivity": 215,
       "volumeFraction": 0.61,
@@ -90,6 +93,15 @@
         "massFraction": 0.01,
         "electronicConductivity": 215
       }
+    },
+    "CurrentCollector": {
+      "comment": "copper data from BattMo",
+      "electronicConductivity": 59600000.0,
+      "thermalConductivity": 398,
+      "specificHeatCapacity": 385,
+      "density": 8960,
+      "thickness": 1e-05,
+      "N": 10
     }
   },
   "PositiveElectrode": {
@@ -112,17 +124,20 @@
           },
           "reactionRateConstant": 2.33e-11,
           "saturationConcentration": 23761,
-          "volumetricSurfaceArea": 2.52e6
+          "volumetricSurfaceArea": 2520000.0
         },
         "SolidDiffusion": {
           "activationEnergyOfDiffusion": 5630.0,
           "referenceDiffusionCoefficient": 1e-12,
-          "particleRadius": 8.94e-06
+          "particleRadius": 8.94e-06,
+	  "N": 10
         },
         "density": 4200,
         "diffusionModelType": "full",
         "massFraction": 0.92
       },
+      "N": 10,
+      "thickness": 7.65e-05,
       "bruggemanCoefficient": 3,
       "electronicConductivity": 0.25,
       "volumeFraction": 0.66,
@@ -136,11 +151,22 @@
         "massFraction": 0.04,
         "electronicConductivity": 0.25
       }
+    },
+    "CurrentCollector": {
+      "comment": "aluminium data from BattMo",
+      "electronicConductivity": 35500000.0,
+      "thermalConductivity": 170,
+      "specificHeatCapacity": 875.0,
+      "density": 2700,
+      "thickness": 2e-05,
+      "N": 10
     }
   },
   "Separator": {
     "bruggemanCoefficient": 4.2,
     "density": 946,
-    "porosity": 0.48
+    "porosity": 0.48,
+    "thickness": 2.5e-05,
+    "N": 10
   }
 }

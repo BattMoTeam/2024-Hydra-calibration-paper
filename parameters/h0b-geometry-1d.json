@@ -1,32 +1,7 @@
 {
   "Geometry": {
     "case": "1D",
+    "comment": "face area from 3D geometry",
     "faceArea": 0.05
-  },
-  "NegativeElectrode": {
-    "Coating": {
-      "thickness": 5.65e-05,
-      "N": 10,
-      "ActiveMaterial": {
-        "SolidDiffusion": {
-          "N": 10
-        }
-      }
-    }
-  },
-  "PositiveElectrode": {
-    "Coating": {
-      "thickness": 7.65e-05,
-      "N": 10,
-      "ActiveMaterial": {
-        "SolidDiffusion": {
-          "N": 10
-        }
-      }
-    }
-  },
-  "Separator": {
-    "thickness": 2e-05,
-    "N": 10
   }
 }

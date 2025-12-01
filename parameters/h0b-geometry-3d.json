@@ -1,0 +1,27 @@
+{
+  "Geometry": {
+    "case": "multiLayerPouch",
+    "nLayers": 20,
+    "width": 50e-3,
+    "length": 50e-3,
+    "tab": {
+      "cap_tabs": true,
+      "width": 20e-3,
+      "Nx": 10,
+      "NegativeElectrode": {
+        "height": 30e-3,
+        "length": 30e-3,
+        "Ny": 10
+      },
+      "PositiveElectrode": {
+        "height": 30e-3,
+        "length": 30e-3,
+        "Ny": 10
+      }
+    },
+    "Electrolyte": {
+      "Nx": 10,
+      "Ny": 10
+    }
+  }
+}
