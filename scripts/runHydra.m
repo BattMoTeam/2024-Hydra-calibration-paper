@@ -1,14 +1,17 @@
 function output = runHydra(input, varargin)
 
     % Input parameters
-    input_default = struct('DRate'          , []   , ...
-                           'totalTime'      , []   , ...
-                           'numTimesteps'   , 100  , ...
-                           'lowRateParams'  , []   , ...
-                           'highRateParams' , []   , ...
-                           'useExpDiffusion', false, ...
-                           'neD'            , []   , ...
-                           'peD'            , []);
+    input_default = struct('DRate'                         , []   , ...
+                           'totalTime'                     , []   , ...
+                           'numTimesteps'                  , 100  , ...
+                           'lowRateParams'                 , []   , ...
+                           'highRateParams'                , []   , ...
+                           'useExpDiffusion'               , false, ...
+                           'neD'                           , []   , ...
+                           'peD'                           , []   , ...
+                           'useRegionBruggemanCoefficients', false, ...
+                           'include_current_collectors'    , false, ...
+                           'geometry'                      , '1d');
 
     if not(isempty(input))
         fds = fieldnames(input);
@@ -42,9 +45,13 @@ function output = runHydra(input, varargin)
     bd    = 'Binder';
     ca    = 'ConductingAdditive';
     cc    = 'CurrentCollector';
+    sep   = 'Separator';
+    geom  = 'Geometry';
 
     % Load base json
     jsonstruct = parseBattmoJson(fullfile(getHydra0Dir(), 'parameters', 'h0b-base.json'));
+
+    jsonstruct.include_current_collectors = input.include_current_collectors;
 
     % Use experimental diffusion if requested
     if input.useExpDiffusion
@@ -97,9 +104,44 @@ function output = runHydra(input, varargin)
         jsonstruct = mergeJsonStructs({jsonstruct_high_rate_params, jsonstruct}, 'warn', false);
     end
 
+    if input.useRegionBruggemanCoefficients
+        jsonstruct.(elyte).useRegionBruggemanCoefficients = true;
+        jsonstruct.(elyte).regionBruggemanCoefficients = struct(ne, 1.5, ...
+                                                                pe, 1.5, ...
+                                                                sep, 1.5);
+    end
+
     % Load geometry
-    jsonstruct_geom = parseBattmoJson(fullfile(getHydra0Dir(), 'parameters', 'h0b-geometry-1d.json'));
+    switch lower(input.geometry)
+      case '1d'
+        geomfile = 'h0b-geometry-1d.json';
+      case '3d'
+        geomfile = 'h0b-geometry-3d.json';
+      otherwise
+        error('Unsupported geometry %s', input.geometry);
+    end
+    jsonstruct_geom = parseBattmoJson(fullfile(getHydra0Dir(), 'parameters', geomfile));
     jsonstruct = mergeJsonStructs({jsonstruct_geom, jsonstruct});
+
+    % Scale input geometry
+    if strcmpi(jsonstruct.Geometry.case, "1D") && jsonstruct.include_current_collectors
+        json_geom_3d = parseBattmoJson(fullfile(getHydra0Dir(), 'parameters', 'h0b-geometry-3d.json'));
+
+        ne_LH = struct('L', json_geom_3d.(geom).length, ...
+                       'h', json_geom_3d.(geom).width, ...
+                       't', jsonstruct.(ne).(cc).thickness);
+
+        ne_effkappa = geometryScaling(ne_LH, jsonstruct.(ne).(cc).electronicConductivity);
+        jsonstruct.(ne).(cc).electronicConductivity = ne_effkappa;
+
+        pe_LH = struct('L', json_geom_3d.(geom).length, ...
+                       'h', json_geom_3d.(geom).width, ...
+                       't', jsonstruct.(pe).(cc).thickness);
+
+        pe_effkappa = geometryScaling(pe_LH, jsonstruct.(pe).(cc).electronicConductivity);
+        jsonstruct.(pe).(cc).electronicConductivity = pe_effkappa;
+
+    end
 
     % Validate json (requires python)
     if opt.validateJson
@@ -227,21 +269,21 @@ function output = runHydra(input, varargin)
 end
 
 %{
-Copyright 2021-2024 SINTEF Industry, Sustainable Energy Technology
-and SINTEF Digital, Mathematics & Cybernetics.
+  Copyright 2021-2024 SINTEF Industry, Sustainable Energy Technology
+  and SINTEF Digital, Mathematics & Cybernetics.
 
-This file is part of The Battery Modeling Toolbox BattMo
+  This file is part of The Battery Modeling Toolbox BattMo
 
-BattMo is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
+  BattMo is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
 
-BattMo is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+  BattMo is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with BattMo.  If not, see <http://www.gnu.org/licenses/>.
+  You should have received a copy of the GNU General Public License
+  along with BattMo.  If not, see <http://www.gnu.org/licenses/>.
 %}
