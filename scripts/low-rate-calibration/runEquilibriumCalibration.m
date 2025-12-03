@@ -3,7 +3,7 @@
 clear all
 close all
 
-diary(sprintf('diary-%s.txt', datestr(now, 'yyyymmdd-HHMMSS')));
+diary(sprintf('_diary-%s-%s.txt', mfilename, datestr(now, 'yyyymmdd-HHMMSS')));
 
 mrstDebug(0);
 
@@ -18,6 +18,7 @@ ne   = 'NegativeElectrode';
 co   = 'Coating';
 sd   = 'SolidDiffusion';
 ctrl = 'Control';
+geom = 'Geometry';
 
 getTime = @(states) cellfun(@(s) s.time, states);
 getE = @(states) cellfun(@(s) s.(ctrl).E, states);
@@ -44,15 +45,29 @@ expdata = struct('time' , datasmooth.time{1} * hour                           , 
 
 %% Initial guess simulation
 
-input = struct('DRate'    , expdata.DRate, ...
-               'totalTime', expdata.time(end));
+input = struct('DRate'                     , expdata.DRate    , ...
+               'totalTime'                 , expdata.time(end), ...
+               'include_current_collectors', true);
 outputInit = runHydra(input, 'clearSimulation', false);
 css0 = CellSpecificationSummary(outputInit.model);
 
 %% Setup and run optimization
 
 ecs = EquilibriumCalibrationSetup2222(outputInit.model, expdata);
-ecs = ecs.setupCalibrationCase(1, 'np_ratio', css0.NPratio);
+
+% Estimate np ratio
+VNE = (52e-3)^2 * outputInit.jsonstruct.(ne).(co).thickness;
+VPE = (50e-3)^2 * outputInit.jsonstruct.(pe).(co).thickness;
+coNE = outputInit.model.(ne).(co);
+coPE = outputInit.model.(pe).(co);
+mNE = VNE * coNE.volumeFractions(1) * coNE.(am).(itf).saturationConcentration * (coNE.(am).(itf).guestStoichiometry100 - coNE.(am).(itf).guestStoichiometry0);
+mPE = VPE  * coPE.volumeFractions(1) * coPE.(am).(itf).saturationConcentration * (coPE.(am).(itf).guestStoichiometry0 - coPE.(am).(itf).guestStoichiometry100);
+NP = mNE / mPE;
+fprintf('Estimated NP ratio from json: %g\n', NP);
+fprintf('NP ration from css0: %g\n', css0.NPratio);
+NP = 1.3;
+
+ecs = ecs.setupCalibrationCase(1, 'np_ratio', NP);
 
 doipopt = false;
 
@@ -96,8 +111,9 @@ printer(jsonstructEC);
 
 input = struct('DRate'        , expdata.I * hour / expdata.cap, ...
                'totalTime'    , expdata.time(end)             , ...
-               'lowRateParams', jsonstructEC);
-outputOpt = runHydra(input, 'clearSimulation', false);
+               'lowRateParams', jsonstructEC, ...
+               'include_current_collectors', true);
+outputOpt = runHydra(input, 'clearSimulation', true);
 cssOpt = CellSpecificationSummary(outputOpt.model);
 fprintf('NPratio after calibration: %g\n', cssOpt.NPratio);
 
@@ -121,6 +137,8 @@ dosave = false;
 if dosave
     exportgraphics(fig, 'cell-balancing.png', 'resolution', 300);
 end
+
+diary off;
 
 return
 
@@ -796,6 +814,8 @@ legend;
 
 %%
 
+diary off;
+
 return
 
 %% Plot dQ/dV and Q(V)
@@ -1106,6 +1126,8 @@ ylabel '-Q_0{\cdot}dV/dQ  /  V';
 
 axis tight;
 ylim([0, 25]);
+
+
 
 % plot(q/hour, dvdq(expdata.U, q0), 'k--', 'displayname', 'Experiment 0.05 C');
 % plot(qpe0cut/hour, dvdq(fpe0cut, qpe0cut), 'displayname', 'PE init', 'color', colors(1,:), 'linestyle', '--');
