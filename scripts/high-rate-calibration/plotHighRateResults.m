@@ -190,5 +190,38 @@ fjv = jsonDiff(output14.jsonstructHRC, ...
                sprintf('Dne %g', output13.output0.model.(ne).(co).(am).(sd).referenceDiffusionCoefficient));
 
 % Add column with initial values
+model0 = output14.output0.model;
+params = fjv.flatjson(:,1);
+initvals = cell(size(params));
+
+for iparam = 1:numel(params)
+    fn = params{iparam};
+    if ~contains(fn, 'tortuosity')
+        fn2 = strsplit(fn, '.');
+        initvals{iparam} = getfield(model0, fn2{:});
+    end
+end
+
+fjv.flatjson = [fjv.flatjson, initvals];
+fjv.columnnames = [fjv.columnnames, {'InitialValue'}];
+fjv.flatjson(:,4) = [];
+fjv.columnnames(4) = [];
+tt = fjv.print();
+
+% shorten names: NegativeElectrode -> NE, PositiveElectrode -> PE
+for ir = 1:size(tt,1)
+    tt{ir,1} = strrep(tt{ir,1}, 'NegativeElectrode', 'NE');
+    tt{ir,1} = strrep(tt{ir,1}, 'PositiveElectrode', 'PE');
+    tt{ir,1} = strrep(tt{ir,1}, 'Separator', 'Sep');
+    tt{ir,1} = strrep(tt{ir,1}, 'ActiveMaterial', 'AM');
+    tt{ir,1} = strrep(tt{ir,1}, 'SolidDiffusion', 'SD');
+    tt{ir,1} = strrep(tt{ir,1}, 'referenceDiffusionCoefficient', 'D');
+end
+
+fig = uifigure('Name', tag, 'Position', [100, 100, 800, 400]);
+uit = uitable(fig, "Data", tt);
+uit.Position(3) = fig.Position(3) - 80;
+uit.Position(4) = fig.Position(4) - 80;
+
 
 diary off;
