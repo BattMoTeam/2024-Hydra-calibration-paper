@@ -6,12 +6,28 @@ function callbackplot(history, it, simulatorSetup, parameters, statesExp, vararg
 
     opt = merge_options(opt, varargin{:});
 
-    vals = parameters{1}.getParameter(simulatorSetup);
+    %vals = parameters{1}.getParameter(simulatorSetup);
+
+    vals00 = cell(1, numel(parameters));
+    for iparam = 1:numel(parameters)
+        vals00{iparam} = parameters{iparam}.getParameter(simulatorSetup);
+    end
+    vals0 = vertcat(vals00{:});
+
+    X = history.u{end};
+    stmp = updateSetupFromScaledParameters(simulatorSetup, parameters, X);
+    for iparam = 1:numel(parameters)
+        vals{iparam} = parameters{iparam}.getParameter(stmp);
+    end
+    vals = vertcat(vals{:});
 
     fprintf('callbackplot it=%g\n', it);
     fprintf('vad %g\n', history.val(end));
     fprintf('u ');
     fprintf('%g ', history.u{end});
+    fprintf('\n');
+    fprintf('initial values ');
+    fprintf('%g ', vals0);
     fprintf('\n');
     fprintf('vals ');
     fprintf('%g ', vals);
@@ -43,7 +59,7 @@ function callbackplot(history, it, simulatorSetup, parameters, statesExp, vararg
         E    = getE(states);
 
         Ediff1 = trapz(texp, abs(Eexp - E));
-        Ediff2 = trapz(texp, (Eexp - E).^2);
+        Ediff2 = sqrt(trapz(texp, (Eexp - E).^2));
 
         if ~isempty(opt.objScaling)
             Ediff1 = Ediff1 / opt.objScaling;
