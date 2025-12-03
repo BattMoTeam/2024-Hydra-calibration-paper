@@ -1,22 +1,25 @@
 classdef HighRateCalibration
 
-% Class to help perform high-rate calibration
+    % Class to help perform high-rate calibration
 
     properties
 
         stdParams
         customParams
         customParamsSpec
+        tag
 
     end
 
     methods
 
 
-        function HRC = HighRateCalibration(simulatorSetup, includeElyte)
+        function HRC = HighRateCalibration(simulatorSetup, tag)
 
             if nargin < 2
-                includeElyte = false;
+                HRC.tag = 'no-elyte-params';
+            else
+                HRC.tag = tag;
             end
 
             ne    = 'NegativeElectrode';
@@ -26,6 +29,8 @@ classdef HighRateCalibration
             sd    = 'SolidDiffusion';
             am    = 'ActiveMaterial';
             elyte = 'Electrolyte';
+            sep   = 'Separator';
+            rbc   = 'regionBruggemanCoefficients';
 
             eldes = {ne, pe};
 
@@ -57,12 +62,17 @@ classdef HighRateCalibration
             HRC.customParamsSpec{1} = struct('name', 'eldes_bruggeman', ...
                                              'boxLims', [1.5, 20], ...
                                              'scaling', 'linear', ...
-                                             'getfun', @(model, ~) getBruggeman(model), ...
-                                             'setfun', @(model, ~, v) setBruggeman(model, v), ...
+                                             'getfun', @(model, ~) getEldeBruggeman(model), ...
+                                             'setfun', @(model, ~, v) setEldeBruggeman(model, v), ...
                                              'location', {[{ne, co, 'bruggemanCoefficient'}; ...
-                                                           {pe, co, 'bruggemanCoefficient'}]});
+                                                           {pe, co, 'bruggemanCoefficient'}]}); % location for printing
 
-            if includeElyte
+            switch HRC.tag
+              case 'no-elyte-params'
+                % Do nothing
+
+              case 'one-elyte-param'
+
                 HRC.stdParams = addParameter(HRC.stdParams, ...
                                              simulatorSetup, ...
                                              'name'     , 'elyte_bruggman', ...
@@ -70,6 +80,20 @@ classdef HighRateCalibration
                                              'boxLims'  , [0.1, 10]                         , ...
                                              'scaling'  , 'linear'                          , ...
                                              'location' , {elyte, 'bruggemanCoefficient'});
+
+              case {'two-elyte-params', 'three-elyte-params'}
+
+                HRC.customParamsSpec{end+1} = struct('name', 'elyte_bruggman', ...
+                                                     'boxLims', [0.1, 10], ...
+                                                     'scaling', 'linear', ...
+                                                     'getfun', @(model, ~) getElyteBruggeman(model, tag), ...
+                                                     'setfun', @(model, ~, v) setElyteBruggeman(model, v, tag), ...
+                                                     'location', {[{elyte, rbc, ne}; ...
+                                                                   {elyte, rbc, pe}; ...
+                                                                   {elyte, rbc, sep}]}); % location for print
+
+              otherwise
+                error('Unknown tag: %s', HRC.tag);
             end
 
             % Convert spec to ModelParameter instances
@@ -123,7 +147,7 @@ classdef HighRateCalibration
             for k = 1:numel(locs_custom)
                 locs = locs_custom{k};
                 vals = vals_custom{k};
-                for i = 1:size(locs, 1)
+                for i = 1:size(vals, 1) % let the vals decide
                     jsonstruct = setfield(jsonstruct, locs{i,:}, vals(i));
                 end
             end
@@ -135,7 +159,7 @@ classdef HighRateCalibration
 end
 
 
-function v = getBruggeman(model)
+function v = getEldeBruggeman(model)
 
     ne = 'NegativeElectrode';
     pe = 'PositiveElectrode';
@@ -152,7 +176,7 @@ function v = getBruggeman(model)
 end
 
 
-function model = setBruggeman(model, vals)
+function model = setEldeBruggeman(model, vals)
 
     assert(~model.use_thermal);
 
@@ -178,41 +202,70 @@ function model = setBruggeman(model, vals)
 end
 
 
-function v = getElyteBruggeman(model)
+function v = getElyteBruggeman(model, tag)
 
     elyte = 'Electrolyte';
-    v = model.(elyte).bruggemanCoefficient;
+    w = model.(elyte).regionBruggemanCoefficients;
+
+    switch tag
+      case 'two-elyte-params'
+        v = [w.NegativeElectrode;
+             w.PositiveElectrode];
+      case 'three-elyte-params'
+        v = [w.NegativeElectrode;
+             w.PositiveElectrode;
+             w.Separator];
+    end
 
 end
 
 
-function model = setElyteBruggeman(model, val)
+function model = setElyteBruggeman(model, vals, tag)
 
     assert(~model.use_thermal);
 
     elyte = 'Electrolyte';
+    ne    = 'NegativeElectrode';
+    pe    = 'PositiveElectrode';
+    sep   = 'Separator';
 
-    % Set value
-    model.(elyte).bruggemanCoefficient = val;
+    nc    = model.(elyte).G.getNumberOfCells();
+    tags  = model.(elyte).regionTags;
+    bvals = model.(elyte).regionBruggemanCoefficients;
+    bvals.(ne) = vals(1);
+    bvals.(pe) = vals(2);
+
+    bg = zeros(nc, 1);
+    bg = subsetPlus(bg, bvals.(ne), (tags == 1));
+    bg = subsetPlus(bg, bvals.(pe), (tags == 2));
+
+    switch tag
+      case 'three-elyte-params'
+        bvals.(sep) = vals(3);
+        bg = subsetPlus(bg, bvals.(sep), (tags == 3));
+    end
+
+    model.(elyte).bruggemanCoefficient = bg;
+    model.(elyte).regionBruggemanCoefficients = bvals;
 
 end
 
 %{
-Copyright 2021-2024 SINTEF Industry, Sustainable Energy Technology
-and SINTEF Digital, Mathematics & Cybernetics.
+  Copyright 2021-2024 SINTEF Industry, Sustainable Energy Technology
+  and SINTEF Digital, Mathematics & Cybernetics.
 
-This file is part of The Battery Modeling Toolbox BattMo
+  This file is part of The Battery Modeling Toolbox BattMo
 
-BattMo is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
+  BattMo is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
 
-BattMo is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+  BattMo is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with BattMo.  If not, see <http://www.gnu.org/licenses/>.
+  You should have received a copy of the GNU General Public License
+  along with BattMo.  If not, see <http://www.gnu.org/licenses/>.
 %}

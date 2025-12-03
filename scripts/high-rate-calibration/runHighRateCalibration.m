@@ -3,25 +3,34 @@
 clear all
 close all
 
+diary(sprintf('_diary-%s-%s.txt', mfilename, datestr(now, 'yyyymmdd-HHMMSS')));
+
 mrstDebug(0);
 
 set(0, 'defaultlinelinewidth', 2)
 set(0, 'defaulttextfontsize', 15);
 set(0, 'defaultaxesfontsize', 15);
 
-am   = 'ActiveMaterial';
-itf  = 'Interface';
-pe   = 'PositiveElectrode';
-ne   = 'NegativeElectrode';
-co   = 'Coating';
-sd   = 'SolidDiffusion';
-ctrl = 'Control';
+am    = 'ActiveMaterial';
+itf   = 'Interface';
+pe    = 'PositiveElectrode';
+ne    = 'NegativeElectrode';
+co    = 'Coating';
+sd    = 'SolidDiffusion';
+ctrl  = 'Control';
+elyte = 'Electrolyte';
 
 getTime = @(states) cellfun(@(s) s.time, states);
 getE = @(states) cellfun(@(s) s.(ctrl).E, states);
 printer = @(s) disp(jsonencode(s, 'PrettyPrint', true));
 
-debug = true;
+debug = false;
+
+% tag = 'no-elyte-params';
+% tag = 'one-elyte-param';
+% tag = 'two-elyte-params';
+tag = 'three-elyte-params'; % 1e-13 goes to it=150
+disp(tag);
 
 %% Fetch experimental data
 
@@ -41,8 +50,18 @@ expdata = struct('time', dataraw.time{k} * hour, ...
 filename     = fullfile(getHydra0Dir(), 'parameters', 'equilibrium-calibration-parameters.json');
 jsonstructEC = parseBattmoJson(filename);
 
+switch tag
+  case {'no-elyte-params', 'one-elyte-param'}
+    useRegionBruggemanCoefficients = false;
+  case {'two-elyte-params', 'three-elyte-params'}
+    useRegionBruggemanCoefficients = true;
+  otherwise
+    error('Unexpected tag %s', tag);
+end
+
 % Find capacity
-inputCap  = struct('lowRateParams', jsonstructEC);
+inputCap  = struct('lowRateParams'             , jsonstructEC, ...
+                   'include_current_collectors', true);
 outputCap = runHydra(inputCap, 'runSimulation', false);
 cap       = computeCellCapacity(outputCap.model);
 
@@ -52,18 +71,20 @@ cap       = computeCellCapacity(outputCap.model);
 
 % Both electrodes with Ds = 1e-14
 % Graphite: Ds= 1e-13 and LNMO: Ds=1e-14
-neD = 1e-13;
+neD = 1e-14;
 peD = 1e-14;
 % neD = [];
 % peD = [];
 
 % Initial guess
-input0 = struct('DRate'        , expdata.I / cap * hour, ...
-                'totalTime'    , expdata.time(end)     , ...
-                'lowRateParams', jsonstructEC          , ...
-                'neD'          , neD                   , ...
-                'peD'          , peD);
-output0 = runHydra(input0);
+input0 = struct('DRate'                         , expdata.I / cap * hour        , ...
+                'totalTime'                     , expdata.time(end)             , ...
+                'lowRateParams'                 , jsonstructEC                  , ...
+                'neD'                           , neD                           , ...
+                'peD'                           , peD                           , ...
+                'useRegionBruggemanCoefficients', useRegionBruggemanCoefficients,  ...
+                'include_current_collectors'    , true);
+output0 = runHydra(input0, 'clearSimulation', true);
 
 if debug
     % Check how exp and initial guess compare
@@ -104,13 +125,12 @@ if debug
     drawnow
 end
 
-simulatorSetup = struct('model', output0.model, ...
+simulatorSetup = struct('model'   , output0.model   , ...
                         'schedule', output0.schedule, ...
-                        'state0', output0.initstate);
+                        'state0'  , output0.initstate);
 
 % Setup parameters to be calibrated
-includeElyte = true;
-HRC = HighRateCalibration(simulatorSetup, includeElyte);
+HRC = HighRateCalibration(simulatorSetup, tag);
 parameters = HRC.getParams();
 
 % Objective function
@@ -162,6 +182,14 @@ callbackfunc = @(history, it) callbackplot(history, it, simulatorSetup, paramete
                                     'logPlot'     , true, ...
                                     'callbackfunc', callbackfunc);
 
+% [vopt, Xopt, history] = unitBoxBFGS(X0, objective, ...
+%                                     'objChangeTol', 1e-14 , ...
+%                                     'gradTol'     , 1e-5  , ...
+%                                     'maximize'    , false, ...
+%                                     'maxit'       , 150  , ...
+%                                     'logPlot'     , true, ...
+%                                     'callbackfunc', callbackfunc);
+
 setupOpt = updateSetupFromScaledParameters(simulatorSetup, parameters, Xopt);
 
 fprintf('obj val=%1.2f (%1.2f), iter=%d\n', vopt, v0, numel(history.val));
@@ -180,10 +208,13 @@ writeJsonStruct(jsonstructHRC, filename);
 
 %% Run model with calibrated parameters
 
-inputOpt = struct('DRate'         , expdata.I / cap * hour    , ...
-                  'totalTime'     , expdata.time(end)         , ...
-                  'lowRateParams' , jsonstructEC, ...
-                  'highRateParams', jsonstructHRC);
+
+inputOpt = struct('DRate'                         , expdata.I / cap * hour        , ...
+                  'totalTime'                     , expdata.time(end)             , ...
+                  'lowRateParams'                 , jsonstructEC                  , ...
+                  'highRateParams'                , jsonstructHRC                 , ...
+                  'useRegionBruggemanCoefficients', useRegionBruggemanCoefficients, ...
+                  'include_current_collectors'    , true);
 outputOpt = runHydra(inputOpt);
 
 
@@ -200,7 +231,7 @@ peD = output0.model.(pe).(co).(am).(sd).referenceDiffusionCoefficient;
 
 dosavemodel = true;
 if dosavemodel
-    save(sprintf('high-rate-calibrated-outputOpt-%g-%g.mat', neD, peD));
+    save(sprintf('high-rate-calibrated-outputOpt-%s-%g-%g.mat', tag, neD, peD));
 end
 
 %% Plot
@@ -219,26 +250,33 @@ ylim([3.45, 4.9])
 
 dosave = false;
 if dosave
-    exportgraphics(fig, sprintf('high-rate-calibration-%g-%g.png', neD, peD), 'resolution', 300)
+    exportgraphics(fig, sprintf('high-rate-calibration-%s-%g-%g.png', tag, neD, peD), 'resolution', 300)
 end
 
+%% Print
+
+printer(jsonstructHRC);
+disp('Tortuosities');
+disp(tau);
+
+diary off;
 
 %{
-Copyright 2021-2024 SINTEF Industry, Sustainable Energy Technology
-and SINTEF Digital, Mathematics & Cybernetics.
+  Copyright 2021-2024 SINTEF Industry, Sustainable Energy Technology
+  and SINTEF Digital, Mathematics & Cybernetics.
 
-This file is part of The Battery Modeling Toolbox BattMo
+  This file is part of The Battery Modeling Toolbox BattMo
 
-BattMo is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
+  BattMo is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
 
-BattMo is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+  BattMo is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with BattMo.  If not, see <http://www.gnu.org/licenses/>.
+  You should have received a copy of the GNU General Public License
+  along with BattMo.  If not, see <http://www.gnu.org/licenses/>.
 %}

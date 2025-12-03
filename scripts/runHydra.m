@@ -47,6 +47,7 @@ function output = runHydra(input, varargin)
     cc    = 'CurrentCollector';
     sep   = 'Separator';
     geom  = 'Geometry';
+    rbc   = 'regionBruggemanCoefficients';
 
     % Load base json
     jsonstruct = parseBattmoJson(fullfile(getHydra0Dir(), 'parameters', 'h0b-base.json'));
@@ -106,9 +107,21 @@ function output = runHydra(input, varargin)
 
     if input.useRegionBruggemanCoefficients
         jsonstruct.(elyte).useRegionBruggemanCoefficients = true;
-        jsonstruct.(elyte).regionBruggemanCoefficients = struct(ne, 1.5, ...
-                                                                pe, 1.5, ...
-                                                                sep, 1.5);
+
+        % Set if not already set (via jsonstructHRC)
+        if ~isfield(jsonstruct.(elyte), rbc)
+            jsonstruct.(elyte).regionBruggemanCoefficients = struct();
+        end
+        if ~isfield(jsonstruct.(elyte).(rbc), ne)
+            jsonstruct.(elyte).regionBruggemanCoefficients.(ne) = 1.5;
+        end
+        if ~isfield(jsonstruct.(elyte).(rbc), pe)
+            jsonstruct.(elyte).regionBruggemanCoefficients.(pe) = 1.5;
+        end
+        if ~isfield(jsonstruct.(elyte).(rbc), sep)
+            jsonstruct.(elyte).regionBruggemanCoefficients.(sep) = 1.5;
+        end
+
     end
 
     % Load geometry
@@ -124,7 +137,7 @@ function output = runHydra(input, varargin)
     jsonstruct = mergeJsonStructs({jsonstruct_geom, jsonstruct});
 
     % Scale input geometry
-    if strcmpi(jsonstruct.Geometry.case, "1D") && jsonstruct.include_current_collectors
+    if strcmpi(jsonstruct.Geometry.case, '1D') && jsonstruct.include_current_collectors
         json_geom_3d = parseBattmoJson(fullfile(getHydra0Dir(), 'parameters', 'h0b-geometry-3d.json'));
 
         ne_LH = struct('L', json_geom_3d.(geom).length, ...
@@ -159,7 +172,7 @@ function output = runHydra(input, varargin)
 
     % Validate before building model
     paramobj = paramobj.validateInputParams();
-    model = Battery(paramobj);
+    model = GenericBattery(paramobj);
 
     % Setup nonlinear solver
     jsonstruct_nls = parseBattmoJson(fullfile('Utilities', 'Linearsolvers', 'JsonDataFiles', 'default_direct_linear_solver.json'));
