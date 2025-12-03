@@ -3,7 +3,24 @@
 clear all
 close all
 
-diary(sprintf('_diary-%s-%s.txt', mfilename, datestr(now, 'yyyymmdd-HHMMSS')));
+neDs = [1e-14, 1e-13];
+% tag = 'no-elyte-params';
+% tag = 'one-elyte-param';
+% tag = 'two-elyte-params';
+%tag = 'three-elyte-params'; % 1e-13 goes to it=150
+tags = {'no-elyte-params', ...
+%'one-elyte-param', ...
+%'two-elyte-params', ...
+        'three-elyte-params'};
+for itag = 1:numel(tags)
+    tag = tags{itag};
+    for ineD = 1:numel(neDs)
+        neD = neDs(ineD);
+
+peD = 1e-14;
+
+
+diary(sprintf('_diary-%s-%s-%s.txt', mfilename, tag, datestr(now, 'yyyymmdd-HHMMSS')));
 
 mrstDebug(0);
 
@@ -29,7 +46,7 @@ debug = false;
 % tag = 'no-elyte-params';
 % tag = 'one-elyte-param';
 % tag = 'two-elyte-params';
-tag = 'three-elyte-params'; % 1e-13 goes to it=150
+%tag = 'three-elyte-params'; % 1e-13 goes to it=150
 disp(tag);
 
 %% Fetch experimental data
@@ -71,8 +88,8 @@ cap       = computeCellCapacity(outputCap.model);
 
 % Both electrodes with Ds = 1e-14
 % Graphite: Ds= 1e-13 and LNMO: Ds=1e-14
-neD = 1e-14;
-peD = 1e-14;
+% neD = 1e-14;
+% peD = 1e-14;
 % neD = [];
 % peD = [];
 
@@ -280,3 +297,6 @@ diary off;
   You should have received a copy of the GNU General Public License
   along with BattMo.  If not, see <http://www.gnu.org/licenses/>.
 %}
+
+    end
+end
