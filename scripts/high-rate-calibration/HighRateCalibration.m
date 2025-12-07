@@ -71,7 +71,7 @@ classdef HighRateCalibration
               case 'no-elyte-params'
                 % Do nothing
 
-              case 'one-elyte-param'
+              case {'one-elyte-param', 'one-elyte-param-finer'}
 
                 HRC.stdParams = addParameter(HRC.stdParams, ...
                                              simulatorSetup, ...
