@@ -14,7 +14,7 @@ function tau = tortuosity(model)
         vf = model.(elde).(co).volumeFraction;
         bman = model.(elde).(co).bruggemanCoefficient;
 
-        tau.(elde) = vf^(1-bman);
+        tau.(elde) = vf^(-bman);
 
     end
 
