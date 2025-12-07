@@ -42,7 +42,7 @@ function callbackplot(history, it, simulatorSetup, parameters, statesExp, vararg
 
         dataFolder = md5sum(setup.model);
         problem = packSimulationProblem(setup.state0, setup.model, setup.schedule, dataFolder, ...
-                                           'NonLinearSolver', opt.nonLinearSolver);
+                                        'NonLinearSolver', opt.nonLinearSolver);
         clearPackedSimulatorOutput(problem, 'Prompt', false);
         simulatePackedProblem(problem);
         [~, states] = getPackedSimulatorOutput(problem);
@@ -73,8 +73,8 @@ function callbackplot(history, it, simulatorSetup, parameters, statesExp, vararg
         figure; hold on, grid on
         plot(getTime(statesExp)/hour, getE(statesExp), 'displayname', 'exp')
         plot(getTime(states)/hour, getE(states), 'displayname', 'calibrated')
-        xlabel('time / hour')
-        ylabel('voltage / V')
+        xlabel('Time  /  hour')
+        ylabel('Voltage  /  V')
         legend('location', 'sw')
         title(sprintf('it=%g %s', it, str));
         drawnow
@@ -84,21 +84,21 @@ function callbackplot(history, it, simulatorSetup, parameters, statesExp, vararg
 end
 
 %{
-Copyright 2021-2024 SINTEF Industry, Sustainable Energy Technology
-and SINTEF Digital, Mathematics & Cybernetics.
+  Copyright 2021-2024 SINTEF Industry, Sustainable Energy Technology
+  and SINTEF Digital, Mathematics & Cybernetics.
 
-This file is part of The Battery Modeling Toolbox BattMo
+  This file is part of The Battery Modeling Toolbox BattMo
 
-BattMo is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
+  BattMo is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
 
-BattMo is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+  BattMo is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with BattMo.  If not, see <http://www.gnu.org/licenses/>.
+  You should have received a copy of the GNU General Public License
+  along with BattMo.  If not, see <http://www.gnu.org/licenses/>.
 %}
