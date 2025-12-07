@@ -2,7 +2,8 @@ function callbackplot(history, it, simulatorSetup, parameters, statesExp, vararg
 
     opt = struct('plotEveryIt', 1, ...
                  'nonLinearSolver', [], ...
-                 'objScaling', []);
+                 'objScaling', [], ...
+                 'doplot', true);
 
     opt = merge_options(opt, varargin{:});
 
@@ -69,15 +70,17 @@ function callbackplot(history, it, simulatorSetup, parameters, statesExp, vararg
         str = sprintf('Integral error %g (%g)', Ediff1, Ediff2);
         disp(str);
 
-        % Plot
-        figure; hold on, grid on
-        plot(getTime(statesExp)/hour, getE(statesExp), 'displayname', 'exp')
-        plot(getTime(states)/hour, getE(states), 'displayname', 'calibrated')
-        xlabel('Time  /  hour')
-        ylabel('Voltage  /  V')
-        legend('location', 'sw')
-        title(sprintf('it=%g %s', it, str));
-        drawnow
+        if opt.doplot
+            % Plot
+            figure; hold on, grid on
+            plot(getTime(statesExp)/hour, getE(statesExp), 'displayname', 'exp')
+            plot(getTime(states)/hour, getE(states), 'displayname', 'calibrated')
+            xlabel('Time  /  hour')
+            ylabel('Voltage  /  V')
+            legend('location', 'sw')
+            title(sprintf('it=%g %s', it, str));
+            drawnow
+        end
 
     end
 

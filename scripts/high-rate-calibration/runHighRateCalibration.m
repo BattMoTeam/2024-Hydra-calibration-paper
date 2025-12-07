@@ -16,6 +16,8 @@ tags = {'no-elyte-params', ...
         'three-elyte-params'
        };
 
+doplot = false;
+
 for itag = 1:numel(tags)
     tag = tags{itag};
     for ineD = 1:numel(neDs)
@@ -208,14 +210,16 @@ for itag = 1:numel(tags)
 
         callbackfunc = @(history, it) callbackplot(history, it, simulatorSetup, parameters, statesExp, ...
                                                    'plotEveryIt', 10, ...
-                                                   'objScaling', scaling);
+                                                   'objScaling', scaling, ...
+                                                   'doplot', doplot);
 
         [vopt, Xopt, history] = unitBoxBFGS(X0, objective, ...
                                             'objChangeTol', 1e-8 , ...
                                             'maximize'    , false, ...
                                             'maxit'       , 150  , ...
                                             'logPlot'     , true, ...
-                                            'callbackfunc', callbackfunc);
+                                            'callbackfunc', callbackfunc, ...
+                                            'plotEvolution', doplot);
 
         % [vopt, Xopt, history] = unitBoxBFGS(X0, objective, ...
         %                                     'objChangeTol', 1e-14 , ...
@@ -274,12 +278,12 @@ for itag = 1:numel(tags)
         fprintf('Sum of squares: %g\n', sum([vfinal{:}]));
         fprintf('L2^2 error: %g\n', L2);
 
-        % plot differences
-        figure; hold on; grid on;
-        plot(tt, (getE(outputOpt.states) - expdataUinterp1(tt)).^2, 'displayname', '|E_{sim} - E_{exp}|^2');
-        plot(tt, [vfinal{:}], 'displayname', 'vfinal');
-
-
+        if doplot
+            % plot differences
+            figure; hold on; grid on;
+            plot(tt, (getE(outputOpt.states) - expdataUinterp1(tt)).^2, 'displayname', '|E_{sim} - E_{exp}|^2');
+            plot(tt, [vfinal{:}], 'displayname', 'vfinal');
+        end
 
         %% Save
 
@@ -292,22 +296,23 @@ for itag = 1:numel(tags)
         end
 
         %% Plot
+        if doplot
+            colors = lines(2);
+            fig = figure('Units', 'inches', 'Position', [0.1, 0.1, 8, 6]);
+            hold on;
+            plot(expdata.time/hour, expdata.U, 'k--', 'displayname', 'Experiment 2 C');
+            plot(getTime(output0.states)/hour, getE(output0.states), 'color', colors(1,:), 'displayname', 'Initial guess')
+            plot(getTime(outputOpt.states)/hour, getE(outputOpt.states), 'color', colors(2,:), 'displayname', 'Calibrated');
+            xlabel('Time  /  h')
+            ylabel('E  /  V')
+            legend('location', 'sw')
+            axis tight
+            ylim([3.45, 4.9])
 
-        colors = lines(2);
-        fig = figure('Units', 'inches', 'Position', [0.1, 0.1, 8, 6]);
-        hold on;
-        plot(expdata.time/hour, expdata.U, 'k--', 'displayname', 'Experiment 2 C');
-        plot(getTime(output0.states)/hour, getE(output0.states), 'color', colors(1,:), 'displayname', 'Initial guess')
-        plot(getTime(outputOpt.states)/hour, getE(outputOpt.states), 'color', colors(2,:), 'displayname', 'Calibrated');
-        xlabel('Time  /  h')
-        ylabel('E  /  V')
-        legend('location', 'sw')
-        axis tight
-        ylim([3.45, 4.9])
-
-        dosave = true;
-        if dosave
-            exportgraphics(fig, sprintf('high-rate-calibration-%s-%g-%g.png', tag, neD, peD), 'resolution', 300)
+            dosave = true;
+            if dosave
+                exportgraphics(fig, sprintf('high-rate-calibration-%s-%g-%g.png', tag, neD, peD), 'resolution', 300)
+            end
         end
 
         %% Print
