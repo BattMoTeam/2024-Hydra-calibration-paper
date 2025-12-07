@@ -11,7 +11,10 @@ function output = runHydra(input, varargin)
                            'peD'                           , []   , ...
                            'useRegionBruggemanCoefficients', false, ...
                            'include_current_collectors'    , false, ...
-                           'geometry'                      , '1d');
+                           'geometry'                      , '1d' , ...
+                           'ne_bman'                       , []   , ...
+                           'pe_bman'                       , []   ,  ...
+                           'sep_bman'                      , []);
 
     if not(isempty(input))
         fds = fieldnames(input);
@@ -88,9 +91,19 @@ function output = runHydra(input, varargin)
     if not(isempty(input.neD))
         jsonstruct.(ne).(co).(am).(sd).referenceDiffusionCoefficient = input.neD;
     end
-
     if not(isempty(input.peD))
         jsonstruct.(pe).(co).(am).(sd).referenceDiffusionCoefficient = input.peD;
+    end
+
+    % Set input Bruggeman coefficients
+    if not(isempty(input.ne_bman))
+        jsonstruct.(ne).(co).bruggemanCoefficient = input.ne_bman;
+    end
+    if not(isempty(input.pe_bman))
+        jsonstruct.(pe).(co).bruggemanCoefficient = input.pe_bman;
+    end
+    if not(isempty(input.sep_bman))
+        jsonstruct.(sep).bruggemanCoefficient = input.sep_bman;
     end
 
     % Set low rate params
