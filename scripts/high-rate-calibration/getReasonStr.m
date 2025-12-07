@@ -1,4 +1,8 @@
-function reasonStr = getReasonStr(history)
+function [reasonStr, tbl] = getReasonStr(history, colname)
+
+    if nargin < 2
+        colname = '';
+    end
 
     if numel(history.val) == 1
 
@@ -29,5 +33,18 @@ function reasonStr = getReasonStr(history)
                  valdiffstr, ...
                  pgstr, ...
                  sprintf('number of iterations %g\n', numel(history.val))];
+
+    rows = {'Obj value (end)'; 'Obj value diff (end-1:end)'; 'Pg (end)'; 'Pg diff (end-1:end)'; 'Num iterations'};
+    values = [history.val(end), ...
+              abs(history.val(end)-history.val(end-1)), ...
+              history.pg(end), ...
+              abs(history.pg(end)-history.pg(end-1)), ...
+              numel(history.val)]';
+
+    tbl = table(values, 'RowNames', rows);
+
+    if ~isempty(colname)
+        tbl.Properties.VariableNames = {colname};
+    end
 
 end
