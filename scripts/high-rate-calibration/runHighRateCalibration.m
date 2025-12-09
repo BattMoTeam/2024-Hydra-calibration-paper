@@ -296,7 +296,7 @@ for itag = 1:numel(tags)
             colors = lines(2);
             fig = figure('Units', 'inches', 'Position', [0.1, 0.1, 8, 6]);
             hold on;
-            plot(expdata.time/hour, expdata.U, 'k--', 'displayname', 'Experiment 2 C');
+            plot(expdata.time/hour, expdata.U, 'k--', 'displayname', 'Experiment 2C');
             plot(getTime(output0.states)/hour, getE(output0.states), 'color', colors(1,:), 'displayname', 'Initial guess')
             plot(getTime(outputOpt.states)/hour, getE(outputOpt.states), 'color', colors(2,:), 'displayname', 'Calibrated');
             xlabel('Time  /  h')

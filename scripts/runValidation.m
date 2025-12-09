@@ -42,8 +42,8 @@ cap       = computeCellCapacity(outputCap.model);
 fig = figure('Units', 'inches', 'Position', [0.1, 0.1, 8, 6]);
 hold on;
 colors = lines(numel(dataraw.time));
-expname = @(c) sprintf('exp %1.2g C', c);
-p2dname = @(c) sprintf('P2D %1.2g C', c);
+expname = @(c) sprintf('exp %1.2gC', c);
+p2dname = @(c) sprintf('P2D %1.2gC', c);
 
 rates = [0.05, 0.2, 0.5, 1, 2];
 
@@ -81,7 +81,7 @@ hp(1) = plot(nan, nan, 'k', 'linestyle', '--');
 hp(2) = plot(nan, nan, 'k', 'linestyle', '-');
 legend(gca(), hp, {'exp', 'P2D'});
 
-legtxt = arrayfun(@(r) {sprintf('%1.2g C', r)}, rates);
+legtxt = arrayfun(@(r) {sprintf('%1.2gC', r)}, rates);
 ax = axes('position', get(gca(), 'position'), 'visible', 'off');
 legend(ax, hp2d, legtxt, 'location', 'sw');
 
