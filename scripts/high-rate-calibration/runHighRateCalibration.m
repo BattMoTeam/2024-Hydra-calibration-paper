@@ -3,16 +3,16 @@
 clear all
 close all
 
-neDs = [1e-13, 1e-14];
+neDs = 1e-13; %[1e-13, 1e-14];
 % tag = 'no-elyte-params';
 % tag = 'one-elyte-param';
 % tag = 'two-elyte-params';
 % tag = 'three-elyte-params'; % 1e-13 goes to it=150
 
-tags = {'no-elyte-params', ...
-        'one-elyte-param', ...
-        %'one-elyte-param-finers', ...
-        'two-elyte-params', ...
+tags = {%'no-elyte-params', ...
+        % 'one-elyte-param', ...
+        % %'one-elyte-param-finers', ...
+        % 'two-elyte-params', ...
         'three-elyte-params'
        };
 
@@ -53,7 +53,7 @@ for itag = 1:numel(tags)
         % tag = 'no-elyte-params';
         % tag = 'one-elyte-param';
         % tag = 'two-elyte-params';
-        %tag = 'three-elyte-params'; % 1e-13 goes to it=150
+        % tag = 'three-elyte-params'; % 1e-13 goes to it=150
         disp(tag);
 
         %% Fetch experimental data
@@ -101,7 +101,10 @@ for itag = 1:numel(tags)
         % peD = [];
 
         % Calculate Bruggeman coefficients from tortuosity and vf
-        bruggeman = calculateBruggemanFromTortuosity(outputCap.model, jsonstructEC);
+        tortuosityRef = struct(pe, 3.46, ...
+                               ne, 3, ...
+                               sep, 4.2);
+        bruggeman = calculateBruggemanFromTortuosity(outputCap.model, jsonstructEC, tortuosityRef);
 
         if contains(tag, 'finer')
             numTimesteps = 400;
@@ -259,13 +262,6 @@ for itag = 1:numel(tags)
                           'include_current_collectors'    , true);
         outputOpt = runHydra(inputOpt);
 
-
-        %% Calculate tortuosity
-        tau0 = tortuosity(output0.model);
-        disp(tau0);
-        tau = tortuosity(outputOpt.model);
-        disp(tau);
-
         %% Quantify differences
         vfinal = lsq(outputOpt.model, outputOpt.states, simulatorSetup.schedule);
 
@@ -315,11 +311,27 @@ for itag = 1:numel(tags)
             end
         end
 
+        %% Quantify difference between experiment and calibrated
+        tt = getTime(outputOpt.states);
+        wL2 = sqrt(trapz(tt, (getE(outputOpt.states) - expdataUinterp1(tt)).^2)) / tt(end) / milli;
+        fprintf('wL2 error after calibration %s Dne=%g Dpe=%g: %g mV\n', tag, neD, peD, wL2);
+
+
         %% Print
 
+        fprintf('Results HRC tag=%s neD=%g peD=%g\n', tag, neD, peD);
         printer(jsonstructHRC);
-        disp('Tortuosities');
-        disp(tau);
+
+        % Postprocess: Report effective electrode conductivities and
+        % electrolyte tortuosities
+        tau = calculateTortuosityFromBruggeman(outputOpt.model, jsonstructHRC);
+        disp('Tortuosities:');
+        printer(tau);
+
+        effCond = struct(pe, outputOpt.model.(pe).(co).effectiveElectronicConductivity, ...
+                         ne, outputOpt.model.(ne).(co).effectiveElectronicConductivity);
+        disp('Effective electronic conductivities:');
+        printer(effCond);
 
         diary off;
 
