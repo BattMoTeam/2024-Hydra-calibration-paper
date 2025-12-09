@@ -81,17 +81,17 @@
       "N": 10,
       "thickness": 5.65e-05,
       "bruggemanCoefficient": 3.46,
-      "electronicConductivity": 215,
+      "electronicConductivity": 62,
       "volumeFraction": 0.61,
       "Binder": {
         "density": 1320,
         "massFraction": 0.03,
-        "electronicConductivity": 215
+        "electronicConductivity": 62
       },
       "ConductingAdditive": {
         "density": 1800,
         "massFraction": 0.01,
-        "electronicConductivity": 215
+        "electronicConductivity": 62
       }
     },
     "CurrentCollector": {
@@ -139,17 +139,17 @@
       "N": 10,
       "thickness": 7.65e-05,
       "bruggemanCoefficient": 3,
-      "electronicConductivity": 0.25,
+      "electronicConductivity": 18,
       "volumeFraction": 0.66,
       "Binder": {
         "density": 1800,
         "massFraction": 0.04,
-        "electronicConductivity": 0.25
+        "electronicConductivity": 18
       },
       "ConductingAdditive": {
         "density": 1800,
         "massFraction": 0.04,
-        "electronicConductivity": 0.25
+        "electronicConductivity": 18
       }
     },
     "CurrentCollector": {
