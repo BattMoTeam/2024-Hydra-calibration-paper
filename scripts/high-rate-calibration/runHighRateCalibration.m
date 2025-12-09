@@ -3,7 +3,7 @@
 clear all
 close all
 
-neDs = 1e-13; %[1e-13, 1e-14];
+Dnes = [1e-14, 1e-13]; % do 1e-13 last as this is the one to use
 % tag = 'no-elyte-params';
 % tag = 'one-elyte-param';
 % tag = 'two-elyte-params';
@@ -20,11 +20,11 @@ doplot = false;
 
 for itag = 1:numel(tags)
     tag = tags{itag};
-    for ineD = 1:numel(neDs)
-        neD = neDs(ineD);
-        fprintf('Running tag=%s with neD=%g\n', tag, neD);
+    for iDne = 1:numel(Dnes)
+        Dne = Dnes(iDne);
+        fprintf('Running tag=%s with Dne=%g\n', tag, Dne);
 
-        peD = 1e-14;
+        Dpe = 1e-14;
 
         diary(sprintf('_diary-%s-%s-%s.txt', mfilename, tag, datestr(now, 'yyyymmdd-HHMMSS')));
 
@@ -90,15 +90,15 @@ for itag = 1:numel(tags)
         cap       = computeCellCapacity(outputCap.model);
 
         % Diffusion must be a scalar when calibrated
-        % neD = mean(computeDanodeH0b(linspace(0, 1, 100)));
-        % peD = mean(computeDcathodeH0b(linspace(0.14, 1, 100)));
+        % Dne = mean(computeDanodeH0b(linspace(0, 1, 100)));
+        % Dpe = mean(computeDcathodeH0b(linspace(0.14, 1, 100)));
 
         % Both electrodes with Ds = 1e-14
         % Graphite: Ds= 1e-13 and LNMO: Ds=1e-14
-        % neD = 1e-14;
-        % peD = 1e-14;
-        % neD = [];
-        % peD = [];
+        % Dne = 1e-14;
+        % Dpe = 1e-14;
+        % Dne = [];
+        % Dpe = [];
 
         % Calculate Bruggeman coefficients from tortuosity and vf
         tortuosityRef = struct(pe, 3.46, ...
@@ -117,8 +117,8 @@ for itag = 1:numel(tags)
                         'totalTime'                     , expdata.time(end)             , ...
                         'numTimesteps'                  , numTimesteps                  , ...
                         'lowRateParams'                 , jsonstructEC                  , ...
-                        'neD'                           , neD                           , ...
-                        'peD'                           , peD                           , ...
+                        'Dne'                           , Dne                           , ...
+                        'Dpe'                           , Dpe                           , ...
                         'useRegionBruggemanCoefficients', useRegionBruggemanCoefficients,  ...
                         'include_current_collectors'    , true                          , ...
                         'ne_bman'                       , bruggeman.(ne)                , ...
@@ -245,9 +245,9 @@ for itag = 1:numel(tags)
         writeJsonStruct(jsonstructHRC, filename);
         printer(jsonstructHRC);
 
-        neD = output0.model.(ne).(co).(am).(sd).referenceDiffusionCoefficient;
-        peD = output0.model.(pe).(co).(am).(sd).referenceDiffusionCoefficient;
-        filename = fullfile(getHydra0Dir(), 'parameters', sprintf('high-rate-calibration-parameters-%g-%g.json', neD, peD));
+        Dne = output0.model.(ne).(co).(am).(sd).referenceDiffusionCoefficient;
+        Dpe = output0.model.(pe).(co).(am).(sd).referenceDiffusionCoefficient;
+        filename = fullfile(getHydra0Dir(), 'parameters', sprintf('high-rate-calibration-parameters-%g-%g.json', Dne, Dpe));
         writeJsonStruct(jsonstructHRC, filename);
 
         %% Run model with calibrated parameters
@@ -283,12 +283,12 @@ for itag = 1:numel(tags)
 
         %% Save
 
-        neD = output0.model.(ne).(co).(am).(sd).referenceDiffusionCoefficient;
-        peD = output0.model.(pe).(co).(am).(sd).referenceDiffusionCoefficient;
+        Dne = output0.model.(ne).(co).(am).(sd).referenceDiffusionCoefficient;
+        Dpe = output0.model.(pe).(co).(am).(sd).referenceDiffusionCoefficient;
 
         dosavemodel = true;
         if dosavemodel
-            save(sprintf('high-rate-calibrated-outputOpt-%s-%g-%g.mat', tag, neD, peD));
+            save(sprintf('high-rate-calibrated-outputOpt-%s-%g-%g.mat', tag, Dne, Dpe));
         end
 
         %% Plot
@@ -307,19 +307,19 @@ for itag = 1:numel(tags)
 
             dosave = true;
             if dosave
-                exportgraphics(fig, sprintf('high-rate-calibration-%s-%g-%g.png', tag, neD, peD), 'resolution', 300)
+                exportgraphics(fig, sprintf('high-rate-calibration-%s-%g-%g.png', tag, Dne, Dpe), 'resolution', 300)
             end
         end
 
         %% Quantify difference between experiment and calibrated
         tt = getTime(outputOpt.states);
         wL2 = sqrt(trapz(tt, (getE(outputOpt.states) - expdataUinterp1(tt)).^2)) / tt(end) / milli;
-        fprintf('wL2 error after calibration %s Dne=%g Dpe=%g: %g mV\n', tag, neD, peD, wL2);
+        fprintf('wL2 error after calibration %s Dne=%g Dpe=%g: %g mV\n', tag, Dne, Dpe, wL2);
 
 
         %% Print
 
-        fprintf('Results HRC tag=%s neD=%g peD=%g\n', tag, neD, peD);
+        fprintf('Results HRC tag=%s Dne=%g Dpe=%g\n', tag, Dne, Dpe);
         printer(jsonstructHRC);
 
         % Postprocess: Report effective electrode conductivities and
