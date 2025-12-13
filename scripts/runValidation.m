@@ -62,8 +62,7 @@ for k = 1:numel(dataraw.time)
                    'useRegionBruggemanCoefficients', true             , ...
                    'include_current_collectors'    , true);
 
-
-    output = runHydra(input, 'clearSimulation', false);
+    output = runHydra(input, 'clearSimulation', true);
 
     figure(fig);
     plot(expdata.time/hour * expdata.I, expdata.U, '--', 'color', colors(k,:));
@@ -72,8 +71,8 @@ for k = 1:numel(dataraw.time)
 
 end
 
-xlabel('C  /  Ah')
-ylabel('E  /  V')
+xlabel('Capacity  /  Ah')
+ylabel('Voltage  /  V')
 axis tight
 ylim([3.45, 4.9])
 
@@ -87,7 +86,7 @@ legend(ax, hp2d, legtxt, 'location', 'sw');
 
 dosave = false;
 if dosave
-    exportgraphics(fig, 'validation.png', 'resolution', 300);
+    exportgraphics(fig, '/tmp/validation.png', 'resolution', 300);
 end
 
 

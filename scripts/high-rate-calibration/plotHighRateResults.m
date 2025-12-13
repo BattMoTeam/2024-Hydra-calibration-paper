@@ -24,9 +24,9 @@ getE = @(states) cellfun(@(s) s.(ctrl).E, states);
 getI = @(states) cellfun(@(s) s.(ctrl).I, states);
 printer = @(s) disp(jsonencode(s, 'PrettyPrint', true));
 
-tag = 'no-elyte-params';
-tag = 'one-elyte-param';
-tag = 'two-elyte-params';
+% tag = 'no-elyte-params';
+% tag = 'one-elyte-param';
+% tag = 'two-elyte-params';
 tag = 'three-elyte-params';
 
 diary(sprintf('_diary-%s-%s-%s.txt', mfilename, tag, datestr(now, 'yyyymmdd-HHMMSS')));
@@ -96,13 +96,14 @@ plot(getTime(output14.outputOpt.states)/hour, getE(output14.outputOpt.states), '
 plot(getTime(output13.outputOpt.states)/hour, getE(output13.outputOpt.states), '--', 'color', colors(2,:), 'displayname', 'Calibrated');
 
 xlabel('Time  /  h')
-ylabel('E  /  V')
+ylabel('Voltage  /  V')
 
 legend()
 drawnow
 
 %dosave = false;
 if dosave
+    title('');
     exportgraphics(fig, sprintf('/tmp/high-rate-calibration-results-%s.png', tag), 'Resolution', 300);
 end
 
