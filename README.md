@@ -1,6 +1,6 @@
 # 2024-Hydra-calibration-paper
 
-This repository contains scripts accompying the paper.
+This repository contains scripts accompying the paper "Comprehensive parameter set and electrochemical data for a 1 Ah graphite/LNMO battery cell for physical modelling as a blueprint for data reporting in battery research" by Schmitt et al.
 
 To run the scripts, first install BattMo according to the instructions
 on <https://github.com/BattMoTeam/BattMo>. Then modify the `startup.m`
