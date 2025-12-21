@@ -1,5 +1,5 @@
 {
-  "include_current_collectors": false,
+  "include_current_collectors": true,
   "initT": 298.15,
   "use_thermal": false,
   "SOC": 1.0,
