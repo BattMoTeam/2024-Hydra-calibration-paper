@@ -1,0 +1,297 @@
+{
+  "@context": "https://w3id.org/emmo/domain/battery/context",
+  "@graph": {
+    "@id": "BattMo",
+    "@type": "PouchCell",
+    "hasProperty": [
+      {
+        "@type": ":modellib_7481c4c9_c247_4248_a045_a1077230acba",
+        "rdfs:label": "PositiveElectrodeCoatingPorosity",
+        "hasNumericalPart": {
+          "@type": "Real",
+          "hasNumericalValue": 0.3266416212363469
+        },
+        "emmo:hasMeasurementUnit": "emmo:dimensionless"
+      },
+      {
+        "@type": ":modellib_098f98dc_e015_4dbd_b358_a7ac3b3ecff3",
+        "rdfs:label": "InitialLithiumConcentrationInElectrolyte",
+        "hasNumericalPart": {
+          "@type": "Real",
+          "hasNumericalValue": 1200.0
+        },
+        "emmo:hasMeasurementUnit": "emmo:molPerM3"
+      },
+      {
+        "@type": ":modellib_52ab4fdd_f945_4541_9ce6_cd6fd3a05861",
+        "rdfs:label": "PositiveElectrodeActiveMaterialOpenCircuitVoltage",
+        "hasStringPart": {
+          "@type": "String",
+          "hasStringValue": "computeOCPcathodeH0b"
+        },
+        "emmo:hasMeasurementUnit": "emmo:volt"
+      },
+      {
+        "@type": ":modellib_8c336ae9_1818_4b08_a660_4bb83b28351f",
+        "rdfs:label": "NegativeElectrodeLithiumStoichiometricCoefficientAtSOC100",
+        "hasNumericalPart": {
+          "@type": "Real",
+          "hasNumericalValue": 0.785861139069905
+        },
+        "emmo:hasMeasurementUnit": "emmo:dimensionless"
+      },
+      {
+        "@type": ":modellib_80920875_62ac_4e29_b970_ec4316e76aa5",
+        "rdfs:label": "PositiveElectrodeLithiumStoichiometricCoefficientAtSOC0",
+        "hasNumericalPart": {
+          "@type": "Real",
+          "hasNumericalValue": 0.8842474038746287
+        },
+        "emmo:hasMeasurementUnit": "emmo:dimensionless"
+      },
+      {
+        "@type": ":modellib_50247e71_75fe_4986_959e_fd06c6be98db",
+        "rdfs:label": "LithiumDiffusivityInNegativeElectrode",
+        "hasNumericalPart": {
+          "@type": "Real",
+          "hasNumericalValue": 1.2414106819005191e-13
+        },
+        "emmo:hasMeasurementUnit": "emmo:meterPower2PerSecond"
+      },
+      {
+        "@type": ":modellib_bfe553c2_a63e_49b6_a209_0855dfc39724",
+        "rdfs:label": "NegativeElectrodeActiveMaterialParticleRadius",
+        "hasNumericalPart": {
+          "@type": "Real",
+          "hasNumericalValue": 1.63e-05
+        },
+        "emmo:hasMeasurementUnit": "emmo:meter"
+      },
+      {
+        "@type": ":modellib_1923575e_05b0_4b8b_8d58_0b2f2ba41c3e",
+        "rdfs:label": "ElectrolyteConductivity",
+        "hasStringPart": {
+          "@type": "String",
+          "hasStringValue": "computeElectrolyteConductivity_Nyman2008"
+        },
+        "emmo:hasMeasurementUnit": "emmo:siemensPerMeter"
+      },
+      {
+        "@type": ":modellib_0a1e73c5_e91b_4365_88d4_1e1f476bf776",
+        "rdfs:label": "PositiveElectrodeActiveMaterialVolumetricSurfaceArea",
+        "hasNumericalPart": {
+          "@type": "Real",
+          "hasNumericalValue": 100798.07414714804
+        },
+        "emmo:hasMeasurementUnit": "emmo:meterPowerNMinusOne"
+      },
+      {
+        "@type": "electrochemistry:electrochemistry_534dd59c_904c_45d9_8550_ae9d2eb6bbc9",
+        "rdfs:label": "electrochemistry:electrochemistry_534dd59c_904c_45d9_8550_ae9d2eb6bbc9",
+        "hasNumericalPart": {
+          "@type": "Real",
+          "hasNumericalValue": 3.5
+        },
+        "emmo:hasMeasurementUnit": "emmo:volt"
+      },
+      {
+        "@type": ":modellib_62f5beeb_6d1e_442a_8048_3ebe08882964",
+        "rdfs:label": "PositiveElectrodeCoatingThickness",
+        "hasNumericalPart": {
+          "@type": "Real",
+          "hasNumericalValue": 7.65e-05
+        },
+        "emmo:hasMeasurementUnit": "emmo:meter"
+      },
+      {
+        "@type": ":modellib_43f77743_1af6_4a0f_9cc6_285c2a450549",
+        "rdfs:label": "PositiveElectrodeElectronicConductivity",
+        "hasNumericalPart": {
+          "@type": "Real",
+          "hasNumericalValue": 18.0
+        },
+        "emmo:hasMeasurementUnit": "emmo:siemensPerMeter"
+      },
+      {
+        "@type": ":modellib_0e2f4fe6_570a_4d13_81e9_de1d4f9987af",
+        "rdfs:label": "NegativeElectrodeActiveMaterialOpenCircuitVoltage",
+        "hasStringPart": {
+          "@type": "String",
+          "hasStringValue": "computeOCPanodeH0b"
+        },
+        "emmo:hasMeasurementUnit": "emmo:volt"
+      },
+      {
+        "@type": ":modellib_56b9cd1f_5397_4385_9292_30d93d9e7a05",
+        "rdfs:label": "PostiveElectrodeActivationEnergyOfReaction",
+        "hasNumericalPart": {
+          "@type": "Real",
+          "hasNumericalValue": 40460.0
+        },
+        "emmo:hasMeasurementUnit": "emmo:joulePerMol"
+      },
+      {
+        "@type": ":modellib_cdc91ec0_9fc5_4551_bbd9_6824c2920124",
+        "rdfs:label": "NegativeElectrodeCoatingThickness",
+        "hasNumericalPart": {
+          "@type": "Real",
+          "hasNumericalValue": 5.65e-05
+        },
+        "emmo:hasMeasurementUnit": "emmo:meter"
+      },
+      {
+        "@type": ":modellib_c69a9d55_823f_4113_a305_ebc89dde7de3",
+        "rdfs:label": "PositiveElectrodeMaximumLithiumConcentration",
+        "hasNumericalPart": {
+          "@type": "Real",
+          "hasNumericalValue": 23761.0
+        },
+        "emmo:hasMeasurementUnit": "emmo:molPerCubicMeter"
+      },
+      {
+        "@type": ":modellib_e59188bb_ce66_49f6_84aa_ecb98e76941e",
+        "rdfs:label": "LithiumDiffusivityInPositiveElectrode",
+        "hasNumericalPart": {
+          "@type": "Real",
+          "hasNumericalValue": 2.821904192882926e-14
+        },
+        "emmo:hasMeasurementUnit": "emmo:squareMeterPerSecond"
+      },
+      {
+        "@type": ":modellib_4d69edda_d2fa_40b0_9c1e_52e08debf578",
+        "rdfs:label": "ActivationEnergyOfLithiumDiffusivityInPositiveElectrode",
+        "hasNumericalPart": {
+          "@type": "Real",
+          "hasNumericalValue": 5630.0
+        },
+        "emmo:hasMeasurementUnit": "emmo:joulePerMol"
+      },
+      {
+        "@type": ":modellib_21da0fe9_9fb6_4840_a12f_fbcc1ba84fb3",
+        "rdfs:label": "NegativeElectrodeLithiumStoichiometricCoefficientAtSOC0",
+        "hasNumericalPart": {
+          "@type": "Real",
+          "hasNumericalValue": 0.0
+        },
+        "emmo:hasMeasurementUnit": "emmo:dimensionless"
+      },
+      {
+        "@type": ":modellib_c5f9b91e_a770_4e9b_837e_fa2a76019111",
+        "rdfs:label": "NegativeElectrodeActiveMaterialVolumetricSurfaceArea",
+        "hasNumericalPart": {
+          "@type": "Real",
+          "hasNumericalValue": 4895610.74530884
+        },
+        "emmo:hasMeasurementUnit": "emmo:meterPowerMinus1"
+      },
+      {
+        "@type": ":modellib_99041897_5c08_40ed_9118_3e77e9b0e191",
+        "rdfs:label": "PositiveElectrodeLithiumStoichiometricCoefficientAtSOC100",
+        "hasNumericalPart": {
+          "@type": "Real",
+          "hasNumericalValue": 0.12824835148826472
+        },
+        "emmo:hasMeasurementUnit": "emmo:dimensionless"
+      },
+      {
+        "@type": ":modellib_86af4487_33c1_4562_a00b_3a8252ffe378",
+        "rdfs:label": "ActivationEnergyOfLithiumDiffusivityInNegativeElectrode",
+        "hasNumericalPart": {
+          "@type": "Real",
+          "hasNumericalValue": 13820.0
+        },
+        "emmo:hasMeasurementUnit": "emmo:joulePerMol"
+      },
+      {
+        "@type": ":modellib_be3da3e2_58a9_4e58_adc2_7336d312717c",
+        "rdfs:label": "NegativeElectrodeElectronicConductivity",
+        "hasNumericalPart": {
+          "@type": "Real",
+          "hasNumericalValue": 62.0
+        },
+        "emmo:hasMeasurementUnit": "emmo:siemensPerMeter"
+      },
+      {
+        "@type": ":modellib_4c274506_af5b_4ef1_8217_829ffd459f28",
+        "rdfs:label": "LithiumDiffusivityInElectrolyte",
+        "hasStringPart": {
+          "@type": "String",
+          "hasStringValue": "computeDiffusionCoefficient_Nyman2008"
+        },
+        "emmo:hasMeasurementUnit": "emmo:meterPower2PerSecond"
+      },
+      {
+        "@type": ":modellib_a4858e4d_dd3b_48ce_97ba_3eeb8571b633",
+        "rdfs:label": "SeparatorPorosity",
+        "hasNumericalPart": {
+          "@type": "Real",
+          "hasNumericalValue": 0.48
+        },
+        "emmo:hasMeasurementUnit": "emmo:dimensionless"
+      },
+      {
+        "@type": ":modellib_e808a26a_5812_49e9_894c_b793c7fe0c38",
+        "rdfs:label": "NegativeElectrodeMaximumLithiumConcentration",
+        "hasNumericalPart": {
+          "@type": "Real",
+          "hasNumericalValue": 31360.0
+        },
+        "emmo:hasMeasurementUnit": "emmo:molPerCubicMeter"
+      },
+      {
+        "@type": ":modellib_404126e0_cb1b_44e4_98dc_2474185767a1",
+        "rdfs:label": "PositiveElectrodeReactionRateConstant",
+        "hasNumericalPart": {
+          "@type": "Real",
+          "hasNumericalValue": 2.33e-11
+        },
+        "emmo:hasMeasurementUnit": "emmo:molPerM2PerS"
+      },
+      {
+        "@type": ":modellib_5cb403c4_4f28_46cb_81c4_21c5c47ef14a",
+        "rdfs:label": "NegativeElectrodeCoatingPorosity",
+        "hasNumericalPart": {
+          "@type": "Real",
+          "hasNumericalValue": 0.40068217800279915
+        },
+        "emmo:hasMeasurementUnit": "emmo:dimensionless"
+      },
+      {
+        "@type": ":modellib_e3e78df2_d568_4ab7_8c0d_d3a2ee3ae282",
+        "rdfs:label": "LithiumTransportNumber",
+        "hasNumericalPart": {
+          "@type": "Real",
+          "hasNumericalValue": 0.226
+        },
+        "emmo:hasMeasurementUnit": "emmo:dimensionless"
+      },
+      {
+        "@type": ":modellib_58400817_3282_46e5_942e_3a1538631403",
+        "rdfs:label": "PositiveElectrodeActiveMaterialParticleRadius",
+        "hasNumericalPart": {
+          "@type": "Real",
+          "hasNumericalValue": 8.94e-06
+        },
+        "emmo:hasMeasurementUnit": "emmo:meter"
+      },
+      {
+        "@type": ":modellib_47288277_4aed_447e_b659_0c975d031406",
+        "rdfs:label": "SeparatorThickness",
+        "hasNumericalPart": {
+          "@type": "Real",
+          "hasNumericalValue": 2.5e-05
+        },
+        "emmo:hasMeasurementUnit": "emmo:meter"
+      },
+      {
+        "@type": "electrochemistry:electrochemistry_9c9b80a4_a00b_4b91_8e17_3a7831f2bf2f",
+        "rdfs:label": "electrochemistry:electrochemistry_9c9b80a4_a00b_4b91_8e17_3a7831f2bf2f",
+        "hasNumericalPart": {
+          "@type": "Real",
+          "hasNumericalValue": 298.15
+        },
+        "emmo:hasMeasurementUnit": "emmo:kelvin"
+      }
+    ]
+  }
+}
