@@ -333,6 +333,10 @@ for itag = 1:numel(tags)
         disp('Effective electronic conductivities:');
         printer(effCond);
 
+        % For testing: print NE volumetric surface area
+        fprintf('Initial diffusion Dne=%g volumetricsurfacearea=%g\n', ...
+                Dne, jsonstructHRC.(ne).(co).(am).(itf).volumetricSurfaceArea);
+
         diary off;
 
         %{
