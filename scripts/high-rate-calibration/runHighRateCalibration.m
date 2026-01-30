@@ -313,7 +313,7 @@ for itag = 1:numel(tags)
 
         %% Quantify difference between experiment and calibrated
         tt = getTime(outputOpt.states);
-        wL2 = sqrt(trapz(tt, (getE(outputOpt.states) - expdataUinterp1(tt)).^2)) / tt(end) / milli;
+        wL2 = sqrt(trapz(tt, (getE(outputOpt.states) - expdataUinterp1(tt)).^2) / tt(end)) / milli;
         fprintf('wL2 error after calibration %s Dne=%g Dpe=%g: %g mV\n', tag, Dne, Dpe, wL2);
 
 
