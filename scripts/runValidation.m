@@ -46,6 +46,7 @@ expname = @(c) sprintf('exp %1.2gC', c);
 p2dname = @(c) sprintf('P2D %1.2gC', c);
 
 rates = [0.05, 0.2, 0.5, 1, 2];
+RMSE = nan(size(rates));
 
 for k = 1:numel(dataraw.time)
 
@@ -55,6 +56,8 @@ for k = 1:numel(dataraw.time)
 
     DRate = expdata.I / cap * hour;
 
+    assert(abs(DRate - rates(k))/rates(k) < 0.1, 'DRate %g does not match expected rate %g', DRate, rates(k));
+
     input = struct('DRate'                         , DRate            , ...
                    'totalTime'                     , expdata.time(end), ...
                    'lowRateParams'                 , jsonstructEC     , ...
@@ -62,7 +65,9 @@ for k = 1:numel(dataraw.time)
                    'useRegionBruggemanCoefficients', true             , ...
                    'include_current_collectors'    , true);
 
-    output = runHydra(input, 'clearSimulation', true);
+    output = runHydra(input, 'clearSimulation', false);
+
+    RMSE(k) = l2error(expdata.time, expdata.U, getTime(output.states), getE(output.states), 'extrap', true);
 
     figure(fig);
     plot(expdata.time/hour * expdata.I, expdata.U, '--', 'color', colors(k,:));
@@ -80,7 +85,12 @@ hp(1) = plot(nan, nan, 'k', 'linestyle', '--');
 hp(2) = plot(nan, nan, 'k', 'linestyle', '-');
 legend(gca(), hp, {'exp', 'P2D'});
 
-legtxt = arrayfun(@(r) {sprintf('%1.2gC', r)}, rates);
+%legtxt = arrayfun(@(r) {sprintf('%1.2gC', r)}, rates);
+legtxt = cell(1, numel(rates));
+for k = 1:numel(rates)
+    legtxt{k} = sprintf('%1.2gC RMSE=%2.1f mV', rates(k), RMSE(k)/milli);
+end
+
 ax = axes('position', get(gca(), 'position'), 'visible', 'off');
 legend(ax, hp2d, legtxt, 'location', 'sw');
 
