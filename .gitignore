@@ -1,2 +1,33 @@
-output/*
-env/*
+output/
+env/
+.venv/
+.vscode/
+.idea/
+codex/
+site/
+.cache/
+
+# MATLAB-generated local artifacts
+*.asv
+_diary-*.txt
+slprj/
+
+# Python cache and local packaging artifacts
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+.coverage
+pip-wheel-metadata/
+
+# Generated calibration exports not required for the canonical source snapshot
+high-rate-calibrated-outputOpt-*.mat
+
+# OS-specific local files
+.DS_Store
+Thumbs.db

@@ -27,12 +27,12 @@ printer = @(s) disp(jsonencode(s, 'PrettyPrint', true));
 %% Fetch experimental data
 
 % Smooth voltages
-datafilename = fullfile(getHydra0Dir(), 'rawData', 'TE_1473smooth');
+datafilename = fullfile(getHydra0Dir(), 'raw-data', 'TE_1473smooth');
 saveddata    = load(datafilename);
 datasmooth   = saveddata.expsmooth;
 
 % Original data (for currents)
-datafilename = fullfile(getHydra0Dir(), 'rawData', 'TE_1473.mat');
+datafilename = fullfile(getHydra0Dir(), 'raw-data', 'TE_1473.mat');
 saveddata    = load(datafilename);
 dataraw      = saveddata.experiment;
 

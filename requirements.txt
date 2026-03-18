@@ -1,0 +1,8 @@
+# Python dependencies for the BPX / PyBaMM interoperability workflow.
+# Install with:
+#   python -m pip install -r requirements.txt
+
+pybamm[bpx]
+scipy
+h5py
+matplotlib

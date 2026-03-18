@@ -36,7 +36,7 @@ dosave = true;
 % Load
 
 % Original data
-datafilename = fullfile(getHydra0Dir(), 'rawData', 'TE_1473.mat');
+datafilename = fullfile(getHydra0Dir(), 'raw-data', 'TE_1473.mat');
 saveddata    = load(datafilename);
 dataraw      = saveddata.experiment;
 

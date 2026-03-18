@@ -1,30 +1,17 @@
 function startup()
 
-    dirnames = {'rawData', 'scripts', 'parameters', 'utils'};
+    repoRoot = fileparts(mfilename('fullpath'));
+    dirnames = {'raw-data', 'scripts', 'parameters', 'utils'};
 
     for idir = 1:numel(dirnames)
-        addpath(genpath(dirnames{idir}));
+        addpath(genpath(fullfile(repoRoot, dirnames{idir})));
     end
 
-    username = getUsername();
     cwdir = pwd();
+    battmo = resolveBattMoPath(repoRoot);
 
-    switch username
-
-      case 'august'
-
-        battmo = '/home/august/Projects/Battery/BattMo';
-
-      case 'xavier'
-
-        battmo = '/home/xavier/Matlab/Projects/battmo';
-
-      otherwise
-
-        error('Unknown user name %s', username);
-
-    end
-
+    cleanupObj = onCleanup(@() cd(cwdir)); %#ok<NASGU>
+    configurePythonExecutable(repoRoot);
     cd(battmo);
     run('startupBattMo.m')
     cd(cwdir);
@@ -37,10 +24,110 @@ function startup()
 end
 
 
-function status = syscall(str)
+function battmo = resolveBattMoPath(repoRoot)
 
-    status = system(str);
-    assert(status == 0, str);
+    parent1 = fileparts(repoRoot);
+    parent2 = fileparts(parent1);
+
+    candidates = {};
+
+    % Preferred path for CI/users: set this explicitly to your BattMo clone.
+    envBattmo = getenv('BATTMO_DIR');
+    if ~isempty(envBattmo)
+        candidates{end+1} = envBattmo; %#ok<AGROW>
+    end
+
+    % Common workspace layouts used in this repository.
+    candidates{end+1} = fullfile(parent2, 'BattMo', 'BattMo', 'BattMo'); %#ok<AGROW>
+    candidates{end+1} = fullfile(parent2, 'BattMo', 'BattMo'); %#ok<AGROW>
+    candidates{end+1} = fullfile(parent2, 'BattMo'); %#ok<AGROW>
+    candidates{end+1} = fullfile(parent1, 'BattMo'); %#ok<AGROW>
+    candidates{end+1} = fullfile(repoRoot, 'BattMo'); %#ok<AGROW>
+
+    candidates = unique(candidates, 'stable');
+
+    for i = 1:numel(candidates)
+        c = candidates{i};
+        if isfolder(c) && isfile(fullfile(c, 'startupBattMo.m'))
+            battmo = c;
+            fprintf('Using BattMo path: %s\n', battmo);
+            return;
+        end
+    end
+
+    error(['Could not find BattMo startup script. Set BATTMO_DIR to the ', ...
+           'BattMo root containing startupBattMo.m. Checked candidates:\n%s'], ...
+          strjoin(candidates, '\n'));
+
+end
+
+
+function configurePythonExecutable(repoRoot)
+
+    pe = pyenv();
+    if pe.Version ~= ""
+        fprintf('Using Python executable: %s\n', pe.Executable);
+        return;
+    end
+
+    candidates = {};
+
+    envvars = {'HYDRA_PYTHON_EXECUTABLE', ...
+               'PYTHON_EXECUTABLE'      , ...
+               'BATTMO_PYTHON_EXECUTABLE'};
+
+    for i = 1:numel(envvars)
+        envval = getenv(envvars{i});
+        if ~isempty(envval)
+            candidates{end+1} = envval; %#ok<AGROW>
+        end
+    end
+
+    if ispc
+        localPrograms = fullfile(getenv('LOCALAPPDATA'), 'Programs', 'Python');
+        candidates = [candidates, ...
+                      {fullfile(repoRoot, 'env', 'Scripts', 'python.exe')} ...
+                      {fullfile(localPrograms, 'Python313', 'python.exe')} ...
+                      {fullfile(localPrograms, 'Python312', 'python.exe')} ...
+                      {fullfile(localPrograms, 'Python311', 'python.exe')} ...
+                      {fullfile(localPrograms, 'Python310', 'python.exe')} ...
+                      {'C:\Program Files\Python313\python.exe'} ...
+                      {'C:\Program Files\Python312\python.exe'} ...
+                      {'C:\Program Files\Python311\python.exe'} ...
+                      {'C:\Program Files\Python310\python.exe'} ...
+                      {'C:\Program Files\Python39\python.exe'} ...
+                      {'C:\Program Files\Python38\python.exe'}];
+    else
+        candidates = [candidates, ...
+                      {fullfile(repoRoot, 'env', 'bin', 'python')} ...
+                      {'/usr/bin/python3.13'} ...
+                      {'/usr/bin/python3.12'} ...
+                      {'/usr/bin/python3.11'} ...
+                      {'/usr/bin/python3.10'} ...
+                      {'/usr/bin/python3.9'} ...
+                      {'/usr/bin/python3.8'}];
+    end
+
+    candidates = unique(candidates, 'stable');
+
+    for i = 1:numel(candidates)
+        candidate = candidates{i};
+        if ~isfile(candidate)
+            continue;
+        end
+
+        try
+            pyenv('Version', candidate);
+            fprintf('Using Python executable: %s\n', pyenv().Executable);
+            return;
+        catch
+            % Keep trying until we find a Python supported by this MATLAB release.
+        end
+    end
+
+    warning(['No supported Python executable configured. JSON validation in BattMo ', ...
+             'will fail until pyenv is set explicitly. Set HYDRA_PYTHON_EXECUTABLE ', ...
+             'or call pyenv(''Version'', <python-executable>) before running scripts.']);
 
 end
 

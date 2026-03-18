@@ -1,0 +1,32 @@
+site_name: Schmitt 2026 Battery Data Explorer
+site_description: Interactive BattMo-first documentation for the graphite/LNMO INP5-70-120-H0B dataset and publication figures.
+docs_dir: docs
+site_dir: site
+use_directory_urls: false
+
+theme:
+  name: mkdocs
+  color_mode: auto
+  user_color_mode_toggle: false
+
+nav:
+  - Home: index.md
+  - Validation Explorer: validation-explorer.md
+  - Publication Figures: publication-figures.md
+  - Supporting Runs: supporting-runs.md
+  - Citation: citation.md
+  - FAIR Data: fair-data.md
+
+markdown_extensions:
+  - tables
+  - attr_list
+  - md_in_html
+  - admonition
+
+extra_css:
+  - assets/stylesheets/extra.css
+
+extra_javascript:
+  - assets/vendor/plotly.min.js
+  - assets/data/site-manifest.js
+  - assets/javascripts/site.js

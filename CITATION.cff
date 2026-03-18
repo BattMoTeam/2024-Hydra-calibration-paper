@@ -1,0 +1,72 @@
+cff-version: 1.2.0
+message: "If you use this repository, please cite the accompanying paper and the software repository."
+title: "2024-Hydra-calibration-paper"
+type: software
+license: "GPL-3.0-or-later"
+repository-code: "https://github.com/BattMoTeam/2024-Hydra-calibration-paper"
+url: "https://github.com/BattMoTeam/2024-Hydra-calibration-paper"
+keywords:
+  - battery modelling
+  - BattMo
+  - electrochemistry
+  - calibration
+  - scientific software
+  - FAIR data
+abstract: "Data, parameter files, and MATLAB workflows for equilibrium calibration, high-rate calibration, and validation of a 1 Ah graphite/LNMO pouch-cell model in BattMo."
+authors:
+  - family-names: "Schmitt"
+    given-names: "Christina"
+  - family-names: "Johansson"
+    given-names: "August"
+  - family-names: "Raynaud"
+    given-names: "Xavier"
+  - family-names: "Flores Cedeño"
+    given-names: "Eibar Joel"
+  - family-names: "Mugisa"
+    given-names: "John"
+  - family-names: "Sotta"
+    given-names: "Dane"
+  - family-names: "Martin"
+    given-names: "Agathe"
+  - family-names: "Schaeffer"
+    given-names: "Nicolas"
+  - family-names: "Debruyne"
+    given-names: "Cédric"
+  - family-names: "Reynier"
+    given-names: "Yvan"
+  - family-names: "Clark"
+    given-names: "Simon"
+  - family-names: "Kopljar"
+    given-names: "Dennis"
+preferred-citation:
+  type: article
+  title: "Comprehensive parameter and electrochemical dataset for a 1 Ah graphite/LNMO battery cell for physical modelling as a blueprint for data reporting in battery research"
+  authors:
+    - family-names: "Schmitt"
+      given-names: "Christina"
+    - family-names: "Johansson"
+      given-names: "August"
+    - family-names: "Raynaud"
+      given-names: "Xavier"
+    - family-names: "Flores Cedeño"
+      given-names: "Eibar Joel"
+    - family-names: "Mugisa"
+      given-names: "John"
+    - family-names: "Sotta"
+      given-names: "Dane"
+    - family-names: "Martin"
+      given-names: "Agathe"
+    - family-names: "Schaeffer"
+      given-names: "Nicolas"
+    - family-names: "Debruyne"
+      given-names: "Cédric"
+    - family-names: "Reynier"
+      given-names: "Yvan"
+    - family-names: "Clark"
+      given-names: "Simon"
+    - family-names: "Kopljar"
+      given-names: "Dennis"
+  year: 2026
+  journal: "arXiv"
+  doi: "10.48550/arXiv.2601.10507"
+  url: "https://arxiv.org/abs/2601.10507"
