@@ -1,4 +1,4 @@
-classdef EquilibriumCalibrationSetup2222
+classdef EquilibriumCalibrationSetupWithDebug
 %% The goal of this class is to solve the following calibration problem:
 % Given a discharge curve, find the set of parameters that give the better match.
 % By default (calibrationCase = 1), the calibration parameters are the guest stoichiometry at discharge start and the total amount Lithium, for both electrodes.
@@ -69,7 +69,7 @@ classdef EquilibriumCalibrationSetup2222
 
     methods
 
-        function ecs = EquilibriumCalibrationSetup2222(model, expdata)
+        function ecs = EquilibriumCalibrationSetupWithDebug(model, expdata)
 
             con = PhysicalConstants();
 

@@ -1,6 +1,5 @@
 %% investigate cell balancing; some done here and some in
-%% runEquilibriumCalibration.m due to dependence on EquilibriumCalibrationSetup2222
-
+%% runEquilibriumCalibration.m due to dependence on EquilibriumCalibrationSetupWithDebug
 
 
 clear all
@@ -68,11 +67,7 @@ outputOpt = runHydra(inputOpt, 'clearSimulation', false);
 
 %% Plot cell balancing time domain
 
-% here we'll make use of EquilibriumCalibrationSetup2222 so rerun this
-
-
-
-ecs = EquilibriumCalibrationSetup2222(outputOpt.model, expdata);
+ecs = EquilibriumCalibrationSetupWithDebug(outputOpt.model, expdata);
 
 t = expdata.time;
 
