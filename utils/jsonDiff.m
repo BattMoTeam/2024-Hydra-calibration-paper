@@ -20,7 +20,7 @@ function fjv = jsonDiff(json1input, json2input, name1, name2)
         json2 = json2input;
     end
 
-    fjv = compareJson(json1, json2, name1, name2);
+    fjv = compareStructs(json1, json2, name1, name2);
     fjv.print('filter', {'comparison', 'different'});
 
 end

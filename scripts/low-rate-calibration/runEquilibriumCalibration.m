@@ -84,7 +84,7 @@ fprintf('obj val=%1.2f (%1.2f), iter=%d\n', vopt, v0, iter);
 ecs.totalAmountVariableChoice = 'volumeFraction';
 jsonstructEC = ecs.exportParameters(Xopt);
 filename = fullfile(getHydra0Dir(), 'parameters', 'equilibrium-calibration-parameters.json');
-writeJsonStruct(jsonstructEC, filename);
+writeStruct(jsonstructEC, filename);
 printer(jsonstructEC);
 
 %% Simulation with calibrated parameters

@@ -22,7 +22,7 @@ jsonOpt = rmfield(jsonOpt, 'Control');
 % Compare
 filename = fullfile(getHydra0Dir(), 'parameters', 'h0b-base.json');
 jsonBase = parseBattmoJson(filename);
-json00 = mergeJsonStructs({jsonstructEC, jsonstructHRC, jsonBase});
+json00 = mergeStructs({jsonstructEC, jsonstructHRC, jsonBase});
 
 jsonDiff(jsonOpt, json00, 'opt', '00');
 
@@ -36,7 +36,7 @@ jsonOpt = removeJsonComments(jsonOpt);
 dosave = true;
 if dosave
     filename = fullfile(getHydra0Dir(), 'parameters', 'h0b-opt.json');
-    writeJsonStruct(jsonOpt, filename);
+    writeStruct(jsonOpt, filename);
 end
 
 function jsonOut = removeJsonComments(jsonIn)

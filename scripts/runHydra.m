@@ -2,6 +2,7 @@ function output = runHydra(input, varargin)
 
     % Input parameters
     input_default = struct('DRate'                         , []   , ...
+                           'I', [], ...
                            'totalTime'                     , []   , ...
                            'numTimesteps'                  , 100  , ...
                            'lowRateParams'                 , []   , ...
@@ -109,13 +110,13 @@ function output = runHydra(input, varargin)
     % Set low rate params
     if not(isempty(input.lowRateParams))
         jsonstruct_low_rate_params = input.lowRateParams;
-        jsonstruct = mergeJsonStructs({jsonstruct_low_rate_params, jsonstruct}, 'warn', false);
+        jsonstruct = mergeStructs({jsonstruct_low_rate_params, jsonstruct}, 'warn', false);
     end
 
     % Set high rate params
     if not(isempty(input.highRateParams))
         jsonstruct_high_rate_params = input.highRateParams;
-        jsonstruct = mergeJsonStructs({jsonstruct_high_rate_params, jsonstruct}, 'warn', false);
+        jsonstruct = mergeStructs({jsonstruct_high_rate_params, jsonstruct}, 'warn', false);
     end
 
     if input.useRegionBruggemanCoefficients
@@ -147,7 +148,7 @@ function output = runHydra(input, varargin)
         error('Unsupported geometry %s', input.geometry);
     end
     jsonstruct_geom = parseBattmoJson(fullfile(getHydra0Dir(), 'parameters', geomfile));
-    jsonstruct = mergeJsonStructs({jsonstruct_geom, jsonstruct});
+    jsonstruct = mergeStructs({jsonstruct_geom, jsonstruct});
 
     % Scale input geometry
     if strcmpi(jsonstruct.Geometry.case, '1D') && jsonstruct.include_current_collectors
@@ -178,19 +179,28 @@ function output = runHydra(input, varargin)
     paramobj = BatteryInputParams(jsonstruct);
     paramobj = setupBatteryGridFromJson(paramobj, jsonstruct);
 
-    % Set rate if provided
-    if not(isempty(input.DRate))
-        paramobj.(ctrl).DRate = input.DRate;
-    end
-
     % Validate before building model
     paramobj = paramobj.validateInputParams();
     model = GenericBattery(paramobj);
 
+    % Set rate or current
+    if isempty(input.DRate) && isempty(input.I)
+        error('Specify either DRate or I');
+    end
+    if not(isempty(input.DRate)) && not(isempty(input.I))
+        error('Specify either DRate or I, not both');
+    end
+    if isempty(input.DRate)
+        model.(ctrl).Imax = input.I;
+    end
+    if isempty(input.I)
+        model.(ctrl).DRate = input.DRate;
+    end
+
     % Setup nonlinear solver
     jsonstruct_nls = parseBattmoJson(fullfile('Utilities', 'Linearsolvers', 'JsonDataFiles', 'default_direct_linear_solver.json'));
     jsonstruct_nls.verbose = opt.verbose;
-    jsonstruct = mergeJsonStructs({jsonstruct_nls, jsonstruct});
+    jsonstruct = mergeStructs({jsonstruct_nls, jsonstruct});
     [model, nls, jsonstruct] = setupNonLinearSolverFromJson(model, jsonstruct);
 
     % Basic config
@@ -279,7 +289,7 @@ function output = runHydra(input, varargin)
         end
 
         save(inputfilename, 'input');
-        writeJsonStruct(jsonencode(input, 'PrettyPrint', true), jsoninputfilename);
+        writeStruct(jsonencode(input, 'PrettyPrint', true), jsoninputfilename);
 
         if opt.clearSimulation
             clearPackedSimulatorOutput(output.problem, 'Prompt', false);

@@ -223,13 +223,13 @@ for itag = 1:numel(tags)
 
         jsonstructHRC = HRC.export(setupOpt);
         filename = fullfile(getHydra0Dir(), 'parameters', 'high-rate-calibration-parameters.json');
-        writeJsonStruct(jsonstructHRC, filename);
+        writeStruct(jsonstructHRC, filename);
         printer(jsonstructHRC);
 
         Dne = output0.model.(ne).(co).(am).(sd).referenceDiffusionCoefficient;
         Dpe = output0.model.(pe).(co).(am).(sd).referenceDiffusionCoefficient;
         filename = fullfile(getHydra0Dir(), 'parameters', sprintf('high-rate-calibration-parameters-%g-%g.json', Dne, Dpe));
-        writeJsonStruct(jsonstructHRC, filename);
+        writeStruct(jsonstructHRC, filename);
 
         %% Run model with calibrated parameters
 
