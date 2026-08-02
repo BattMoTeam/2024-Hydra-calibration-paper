@@ -118,7 +118,13 @@
             "functionName": "computeOCPcathodeH0b",
             "functionFormat": "named function"
           },
-          "reactionRateConstant": 2.33e-11,
+          "exchangeCurrentDensity": {
+            "argumentList": [
+              "soc"
+            ],
+            "functionName": "computeJ0cathodeH0b",
+            "functionFormat": "named function"
+          },
           "saturationConcentration": 23761,
           "volumetricSurfaceArea": 2520000.0
         },
