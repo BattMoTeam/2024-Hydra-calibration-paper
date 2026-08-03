@@ -52,7 +52,7 @@ end
 expdata = expdata_all{end};
 optimization_lower_cutoff_voltage = min(expdata.E) - 0.5;
 jsonstruct_base = parseBattmoJson(fullfile(getHydra0Dir(), 'parameters', 'h0b-base.json'));
-jsonstruct_base.(elyte).useRegionBruggemanCoefficients = true;
+jsonstruct_base.(elyte).useRegionBruggemanCoefficients = false;
 if jsonstruct_base.(elyte).useRegionBruggemanCoefficients
     jsonstruct_base.(elyte).regionBruggemanCoefficients = struct(ne, 1.5, sep, 1.5, pe, 1.5);
 end
