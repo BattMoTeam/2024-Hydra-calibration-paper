@@ -119,6 +119,7 @@ ylabel('Voltage / V')
 title('Figure 12. Cell balancing under equilibrium assumption')
 axis tight
 breakyaxis([1.5, 3]);
+
 saveFigureSet(fig12, fullfile(figuresDir, 'figure-12-cell-balancing-under-equilibrium-assumption'));
 saveJson( ...
     fullfile(figuresDir, 'figure-12-cell-balancing-under-equilibrium-assumption.json'), ...
@@ -299,137 +300,6 @@ saveJson( ...
         );
 
 fprintf('Wrote publication figures and supporting dashboards to %s\n', figuresDir);
-
-
-function caseData = buildCaseStruct(caseName, expdata, output, DRate, color, ne, pe, co, am, sd, itf, ctrl)
-
-    getTime = @(states) cellfun(@(s) s.time, states);
-    getE = @(states) cellfun(@(s) s.(ctrl).E, states);
-
-    states = output.states;
-    model = output.model;
-
-    time_s = getTime(states);
-    sim_voltage_v = getE(states);
-    exp_capacity_ah = expdata.time * expdata.I / hour;
-    sim_capacity_ah = time_s * expdata.I / hour;
-
-    cmax_ne = model.(ne).(co).(am).(itf).saturationConcentration;
-    cmax_pe = model.(pe).(co).(am).(itf).saturationConcentration;
-
-    caseData = struct( ...
-        'case_name'               , caseName, ...
-        'current_a'               , expdata.I, ...
-        'drate'                   , DRate, ...
-        'color'                   , color, ...
-        'experimental_voltage_v'  , expdata.U(:)', ...
-        'sim_voltage_v'           , sim_voltage_v(:)', ...
-        'exp_capacity_ah'         , exp_capacity_ah(:)', ...
-        'sim_capacity_ah'         , sim_capacity_ah(:)', ...
-        'time_h'                  , time_s(:)' / hour, ...
-        'x_elyte_um'              , getSpatialCoordinate(model.Electrolyte.G) * 1e6, ...
-        'x_ne_um'                 , getSpatialCoordinate(model.(ne).(co).G) * 1e6, ...
-        'x_pe_um'                 , getSpatialCoordinate(model.(pe).(co).G) * 1e6, ...
-        'elyte_c'                 , stackStateVectors(states, @(s) s.Electrolyte.c(:)), ...
-        'elyte_phi'               , stackStateVectors(states, @(s) s.Electrolyte.phi(:)), ...
-        'ne_phi'                  , stackStateVectors(states, @(s) s.(ne).(co).phi(:)), ...
-        'pe_phi'                  , stackStateVectors(states, @(s) s.(pe).(co).phi(:)), ...
-        'ne_theta'                , stackStateVectors(states, @(s) s.(ne).(co).(am).(sd).cSurface(:)) ./ cmax_ne, ...
-        'pe_theta'                , stackStateVectors(states, @(s) s.(pe).(co).(am).(sd).cSurface(:)) ./ cmax_pe);
-
-end
-
-
-function values = stackStateVectors(states, getter)
-
-    vectors = cellfun(@(s) getter(s), states, 'UniformOutput', false);
-    values = horzcat(vectors{:});
-
-end
-
-
-function x = getSpatialCoordinate(gridObj)
-
-    x = gridObj.parentGrid.tPFVgeometry.cells.centroids(gridObj.mappings.cellmap);
-    x = x(:)';
-
-end
-
-
-function plotStateTile(ax, time_h, x_um, values, plotTitle)
-
-    axes(ax);
-    imagesc(time_h, x_um, values);
-    axis xy
-    grid off
-    xlabel('Time / h')
-    ylabel('x / \mum')
-    title(plotTitle)
-    colorbar
-
-end
-
-
-function saveFigureSet(fig, outbase)
-
-    [folder, ~, ~] = fileparts(outbase);
-    ensureFolder(folder);
-    savefig(fig, [outbase, '.fig']);
-    exportgraphics(fig, [outbase, '.png'], 'Resolution', 300);
-
-end
-
-
-function ensureFolder(folder)
-
-    if ~isfolder(folder)
-        mkdir(folder);
-    end
-
-end
-
-
-function slug = slugify(str)
-
-    slug = lower(strrep(str, ' ', '-'));
-    slug = regexprep(slug, '[^a-z0-9\-]', '');
-
-end
-
-
-function out = caseToJsonStruct(caseData)
-
-    out = struct( ...
-        'case_name', caseData.case_name, ...
-        'current_a', caseData.current_a, ...
-        'drate', caseData.drate, ...
-        'experimental_voltage_v', caseData.experimental_voltage_v, ...
-        'sim_voltage_v', caseData.sim_voltage_v, ...
-        'exp_capacity_ah', caseData.exp_capacity_ah, ...
-        'sim_capacity_ah', caseData.sim_capacity_ah, ...
-        'time_h', caseData.time_h, ...
-        'x_elyte_um', caseData.x_elyte_um, ...
-        'x_ne_um', caseData.x_ne_um, ...
-        'x_pe_um', caseData.x_pe_um, ...
-        'elyte_c', caseData.elyte_c, ...
-        'elyte_phi', caseData.elyte_phi, ...
-        'ne_phi', caseData.ne_phi, ...
-        'pe_phi', caseData.pe_phi, ...
-        'ne_theta', caseData.ne_theta, ...
-        'pe_theta', caseData.pe_theta);
-
-end
-
-
-function saveJson(filename, data)
-
-    jsonstr = jsonencode(data, 'PrettyPrint', true);
-    fid = fopen(filename, 'w');
-    assert(fid > 0, 'Could not open %s for writing', filename);
-    cleanupObj = onCleanup(@() fclose(fid));
-    fprintf(fid, '%s', jsonstr);
-
-end
 
 
 %{
