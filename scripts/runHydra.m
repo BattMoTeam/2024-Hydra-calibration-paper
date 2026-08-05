@@ -88,6 +88,18 @@ function output = runHydra(input, varargin)
         end
     end
 
+    % Set low rate params
+    if not(isempty(input.lowRateParams))
+        jsonstruct_low_rate_params = input.lowRateParams;
+        jsonstruct = mergeStructs({jsonstruct_low_rate_params, jsonstruct}, 'warn', false);
+    end
+
+    % Set high rate params
+    if not(isempty(input.highRateParams))
+        jsonstruct_high_rate_params = input.highRateParams;
+        jsonstruct = mergeStructs({jsonstruct_high_rate_params, jsonstruct}, 'warn', false);
+    end
+
     % Set input diffusion
     if not(isempty(input.Dne))
         jsonstruct.(ne).(co).(am).(sd).referenceDiffusionCoefficient = input.Dne;
@@ -105,18 +117,6 @@ function output = runHydra(input, varargin)
     end
     if not(isempty(input.sep_bman))
         jsonstruct.(sep).bruggemanCoefficient = input.sep_bman;
-    end
-
-    % Set low rate params
-    if not(isempty(input.lowRateParams))
-        jsonstruct_low_rate_params = input.lowRateParams;
-        jsonstruct = mergeStructs({jsonstruct_low_rate_params, jsonstruct}, 'warn', false);
-    end
-
-    % Set high rate params
-    if not(isempty(input.highRateParams))
-        jsonstruct_high_rate_params = input.highRateParams;
-        jsonstruct = mergeStructs({jsonstruct_high_rate_params, jsonstruct}, 'warn', false);
     end
 
     if input.useRegionBruggemanCoefficients
@@ -184,16 +184,19 @@ function output = runHydra(input, varargin)
     model = GenericBattery(paramobj);
 
     % Set rate or current
-    if isempty(input.DRate) && isempty(input.I)
-        error('Specify either DRate or I');
-    end
-    if not(isempty(input.DRate)) && not(isempty(input.I))
+    hasDRate = not(isempty(input.DRate));
+    hasI = not(isempty(input.I));
+
+    if hasDRate && hasI
         error('Specify either DRate or I, not both');
     end
-    if isempty(input.DRate)
+    if not(hasDRate) && not(hasI) && opt.runSimulation
+        error('Specify either DRate or I');
+    end
+    if hasI
         model.(ctrl).Imax = input.I;
     end
-    if isempty(input.I)
+    if hasDRate
         model.(ctrl).DRate = input.DRate;
     end
 
@@ -302,6 +305,12 @@ function output = runHydra(input, varargin)
         end
 
     else
+
+        if not(opt.runSimulation)
+            output.states = {};
+            output.input = input;
+            return
+        end
 
         [~, output.states] = simulateScheduleAD(initstate, model, schedule, ...
                                                 'OutputMinisteps', true, ...
