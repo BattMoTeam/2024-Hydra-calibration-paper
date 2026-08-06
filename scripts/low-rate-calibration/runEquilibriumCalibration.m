@@ -1,7 +1,7 @@
 %% Script to calibrate parameters under equilibrium assumptions
 
 clear all
-% close all
+close all
 
 diary(sprintf('_diary-%s-%s.txt', mfilename, datestr(now, 'yyyymmdd-HHMMSS')));
 
@@ -19,6 +19,7 @@ co   = 'Coating';
 sd   = 'SolidDiffusion';
 ctrl = 'Control';
 geom = 'Geometry';
+sep  = 'Separator';
 
 getTime = @(states) cellfun(@(s) s.time, states);
 getE = @(states) cellfun(@(s) s.(ctrl).E, states);
@@ -47,7 +48,13 @@ css0 = CellSpecificationSummary(outputInit.model);
 
 %% Setup and run optimization
 
+[~, caps] = computeCellCapacity(outputInit.model);
+areas = struct(pe, outputInit.jsonstruct.Geometry.faceArea, ...
+               ne, 540.8*centi^2);
+np_ratio = caps.(ne) / caps.(pe) * areas.(ne) / areas.(pe);
+
 ecs = EquilibriumCalibrationSetup(outputInit.model, expdata);
+ecs = ecs.setupCalibrationCase(1, 'np_ratio', np_ratio);
 
 doipopt = false;
 
