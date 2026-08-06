@@ -26,7 +26,7 @@ geometry = '1d';
 max_iterations = 3;
 use_equivalent_eff_cond = strcmpi(geometry, '1d');
 include_current_collectors = strcmpi(geometry, '1d');
-useRegionBruggemanCoefficients = true;
+useRegionBruggemanCoefficients = false;
 
 % Experimental data and base parameters
 datafilename = fullfile(getHydra0Dir(), 'raw-data', 'TE_1473.mat');
