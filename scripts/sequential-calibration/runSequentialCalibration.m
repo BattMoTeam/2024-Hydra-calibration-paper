@@ -26,6 +26,7 @@ geometry = '1d';
 max_iterations = 3;
 use_equivalent_eff_cond = strcmpi(geometry, '1d');
 include_current_collectors = strcmpi(geometry, '1d');
+useRegionBruggemanCoefficients = true;
 
 % Experimental data and base parameters
 datafilename = fullfile(getHydra0Dir(), 'raw-data', 'TE_1473.mat');
@@ -51,11 +52,7 @@ end
 % Highest DRate is last
 expdata = expdata_all{end};
 optimization_lower_cutoff_voltage = min(expdata.E) - 0.5;
-jsonstruct_base = parseBattmoJson(fullfile(getHydra0Dir(), 'parameters', 'h0b-base.json'));
-jsonstruct_base.(elyte).useRegionBruggemanCoefficients = false;
-if jsonstruct_base.(elyte).useRegionBruggemanCoefficients
-    jsonstruct_base.(elyte).regionBruggemanCoefficients = struct(ne, 1.5, sep, 1.5, pe, 1.5);
-end
+jsonEQC = parseBattmoJson(fullfile(getHydra0Dir(), 'parameters', 'equilibrium-calibration-parameters.json'));
 
 % Utility functions
 getTime = @(states) cellfun(@(s) s.time, states);
@@ -67,6 +64,8 @@ fprintf('=== ITERATIVE PARAMETER OPTIMIZATION ===\n');
 
 % Store results for all iterations
 all_iteration_results = struct();
+initial_calibrated_values = [];
+initial_group_by_shortname = {};
 
 for iteration = 0:max_iterations
     fprintf('\n%s\n', repmat('=', 1, 60));
@@ -75,20 +74,25 @@ for iteration = 0:max_iterations
 
     %% Load parameters
     if iteration == 0
-        jsonstruct_start = parseBattmoJson(fullfile(getHydra0Dir(), 'parameters', 'equilibrium-calibration-parameters.json'));
+        jsonHRC_current = [];
     else
-        jsonstruct_start = parseBattmoJson(fullfile(getHydra0Dir(), 'parameters', ...
-                                                    sprintf('h0b-%s-iterative-%d-groups-%s.json', grouping_strategy, iteration, geometry)));
+        jsonHRC_current = parseBattmoJson(fullfile(getHydra0Dir(), 'parameters', ...
+                                                   sprintf('h0b-%s-iterative-%d-groups-%s.json', grouping_strategy, iteration, geometry)));
     end
 
-    jsonstruct_current = mergeStructs({jsonstruct_start, jsonstruct_base});
-    jsonstruct_current_sim = jsonstruct_current;
-    jsonstruct_current_sim.(ctrl).lowerCutoffVoltage = optimization_lower_cutoff_voltage;
+    jsonHRC_current_sim = jsonHRC_current;
+    if ~isempty(jsonHRC_current_sim)
+        jsonHRC_current_sim.(ctrl).lowerCutoffVoltage = optimization_lower_cutoff_voltage;
+    end
 
     %% Run simulation
     input_ref_1 = struct('I', expdata.I, ...
                          'totalTime', expdata.time(end), ...
-                         'highRateParams', jsonstruct_current_sim);
+                         'geometry', geometry, ...
+                         'include_current_collectors', include_current_collectors, ...
+                         'lowRateParams', jsonEQC, ...
+                         'highRateParams', jsonHRC_current_sim, ...
+                         'useRegionBruggemanCoefficients', useRegionBruggemanCoefficients);
     output_ref_1 = runHydra(input_ref_1, 'clearSimulation', false);
 
     % % Truncate if needed
@@ -100,7 +104,7 @@ for iteration = 0:max_iterations
     %% Sensitivity Analysis
     fprintf('\n--- Sensitivity Analysis ---\n');
 
-    if jsonstruct_base.(elyte).useRegionBruggemanCoefficients
+    if useRegionBruggemanCoefficients
         shortnames = {'ne_vsa', 'pe_vsa', 'ne_bg', 'pe_bg', 'ne_D', 'pe_D', ...%'ne_j0', 'pe_j0', ...
                       'elyte_bg_ne', 'elyte_bg_pe', 'elyte_bg_sep'};
         % shortnames = {'ne_vsa', 'pe_vsa', 'ne_bg', 'pe_bg', 'ne_D', 'pe_D', 'elyte_bg_ne', 'elyte_bg_pe', 'elyte_bg_sep'};
@@ -110,12 +114,19 @@ for iteration = 0:max_iterations
     end
 
     PS = ParamSetter('shortnames', shortnames, ...
-                     'useRegionBruggemanCoefficients', jsonstruct_base.(elyte).useRegionBruggemanCoefficients);
+                     'useRegionBruggemanCoefficients', useRegionBruggemanCoefficients);
+    if iteration == 0
+        PS.printBoxLims();
+    end
 
     simSetup = struct('state0', output_ref_1.initstate, ...
                       'model', output_ref_1.model, ...
                       'schedule', output_ref_1.schedule);
     PS.validate(simSetup.model);
+
+    if iteration == 0
+        initial_calibrated_values = PS.getValues(simSetup.model);
+    end
 
     getValues = @(model, notused) PS.getValues(model);
     setValues = @(model, notused, v) PS.setValues(model, v);
@@ -126,6 +137,7 @@ for iteration = 0:max_iterations
                                          'location', {''}, ...
                                          'boxLims', PS.boxLims, ...
                                          'scaling', 'linear', ...
+                                         'shortnames', PS.shortnames, ...
                                          'getfun', getValues, ...
                                          'setfun', setValues);
 
@@ -198,6 +210,18 @@ for iteration = 0:max_iterations
         OptimizationSolver = 'unitboxbfgs';
     end
 
+    if iteration == 0
+        initial_group_by_shortname = repmat({''}, numel(PS.shortnames), 1);
+        for group_index = 1:numel(parameter_groups)
+            group = parameter_groups{group_index};
+            for parameter_index = 1:numel(group.parameters)
+                match = strcmp(PS.shortnames, group.parameters{parameter_index});
+                assert(any(match), 'Group parameter %s is not in the complete shortname list.', group.parameters{parameter_index});
+                initial_group_by_shortname{match} = group.name;
+            end
+        end
+    end
+
     fprintf('Groups for optimization:\n');
     for i = 1:length(parameter_groups)
         fprintf('  %d. %s: %s\n', i, parameter_groups{i}.name, strjoin(parameter_groups{i}.parameters, ', '));
@@ -207,7 +231,7 @@ for iteration = 0:max_iterations
     fprintf('\n--- Group Optimization ---\n');
 
     current_output = output_ref_1;
-    current_jsonstruct = jsonstruct_current;
+    current_jsonHRC = buildParameterJson(PS, PS.getValues(current_output.model));
     optimization_history = struct();
 
     for group_idx = 1:length(parameter_groups)
@@ -224,7 +248,7 @@ for iteration = 0:max_iterations
                                 'schedule', current_output.schedule);
 
         PS_group = ParamSetter('shortnames', group.parameters, ...
-                               'useRegionBruggemanCoefficients', jsonstruct_base.(elyte).useRegionBruggemanCoefficients);
+                               'useRegionBruggemanCoefficients', useRegionBruggemanCoefficients);
         PS_group.validate(simSetup_group.model);
 
         getValues_group = @(model, notused) PS_group.getValues(model);
@@ -275,23 +299,13 @@ for iteration = 0:max_iterations
 
         % Apply optimized parameters
         setupOpt = updateSetupFromScaledParameters(simSetup_group, params_group, Xopt);
-        pOpt = applyFunction(@(p) p.getParameter(setupOpt), params_group);
-        pOpt = vertcat(pOpt{:});
 
-        % Update JSON structure
-        locs = PS_group.locations();
-        jsonstruct_optimized = struct();
-        for k = 1:numel(locs)
-            ploc = locs{k};
-            jsonstruct_optimized = setStructField(jsonstruct_optimized, ploc, pOpt(k));
-        end
-
-        current_jsonstruct = mergeStructs({jsonstruct_optimized, current_jsonstruct});
+        current_jsonHRC = buildParameterJson(PS, PS.getValues(setupOpt.model));
 
         % Run simulation with new parameters
-        current_jsonstruct_sim = current_jsonstruct;
-        current_jsonstruct_sim.(ctrl).lowerCutoffVoltage = optimization_lower_cutoff_voltage;
-        input_ref_1.highRateParams = current_jsonstruct_sim;
+        current_jsonHRC_sim = current_jsonHRC;
+        current_jsonHRC_sim.(ctrl).lowerCutoffVoltage = optimization_lower_cutoff_voltage;
+        input_ref_1.highRateParams = current_jsonHRC_sim;
         current_output = runHydra(input_ref_1, 'clearSimulation', false);
     end
 
@@ -299,7 +313,7 @@ for iteration = 0:max_iterations
     fprintf('\n--- Saving Results ---\n');
 
     output_filename = sprintf('h0b-%s-iterative-%d-groups-%s.json', grouping_strategy, iteration + 1, geometry);
-    writeStruct(current_jsonstruct, fullfile(getHydra0Dir(), 'parameters', output_filename));
+    writeStruct(current_jsonHRC, fullfile(getHydra0Dir(), 'parameters', output_filename));
 
     initial_wL2 = l2error(getTime(output_ref_1.states), getE(output_ref_1.states), ...
                           expdata.time, expdata.E, 'extrap', true);
@@ -313,14 +327,17 @@ for iteration = 0:max_iterations
     all_iteration_results(iteration+1).initial_wL2 = initial_wL2;
     all_iteration_results(iteration+1).final_wL2 = final_wL2;
     all_iteration_results(iteration+1).improvement = (initial_wL2-final_wL2)/initial_wL2*100;
-    all_iteration_results(iteration+1).jsonstruct = current_jsonstruct;
+    all_iteration_results(iteration+1).jsonHRC = current_jsonHRC;
 
     %% Plot results
     plotIterationResults(iteration, output_ref_1, current_output, expdata, gradient_actual, PS.shortnames, optimization_history);
 
     %% Validation
     fprintf('\n--- Multi-Rate Validation ---\n');
-    plotMultiRateValidation(expdata_all, current_jsonstruct, iteration);
+    plotMultiRateValidation(expdata_all, jsonEQC, current_jsonHRC, iteration, ...
+                            'geometry', geometry, ...
+                            'include_current_collectors', include_current_collectors, ...
+                            'useRegionBruggemanCoefficients', useRegionBruggemanCoefficients);
 
     % %% Check convergence
     % if iteration > 0 && abs((initial_wL2 - final_wL2) / initial_wL2) < 0.01
@@ -331,10 +348,23 @@ for iteration = 0:max_iterations
 end
 
 %% Final calibrated parameter values
-final_jsonstruct = all_iteration_results(end).jsonstruct;
+final_jsonHRC = all_iteration_results(end).jsonHRC;
 PS_final = ParamSetter('shortnames', shortnames, ...
-                       'useRegionBruggemanCoefficients', jsonstruct_base.(elyte).useRegionBruggemanCoefficients);
-final_calibrated_values = PS_final.getValues(final_jsonstruct);
+                       'useRegionBruggemanCoefficients', useRegionBruggemanCoefficients);
+final_json_sim = mergeStructs({final_jsonHRC, jsonEQC});
+final_calibrated_values = PS_final.getValues(final_json_sim);
 fprintf('%.16g\n', final_calibrated_values);
 
+disp(table(PS_final.shortnames(), initial_calibrated_values, final_calibrated_values, ...
+           initial_group_by_shortname, ...
+           'VariableNames', {'Shortname', 'InitialValue', 'FinalValue', 'InitialGroup'}))
+
 diary off;
+
+function jsonstruct = buildParameterJson(parameterSetter, values)
+    locs = parameterSetter.locations();
+    jsonstruct = struct();
+    for index = 1:numel(locs)
+        jsonstruct = setStructField(jsonstruct, locs{index}, values(index));
+    end
+end
