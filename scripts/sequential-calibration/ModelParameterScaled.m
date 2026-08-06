@@ -5,42 +5,42 @@ classdef ModelParameterScaled
         boxLims                     % upper/lower value(s) for parameters (used for scaling)
         subset                      % subset of parameters (or subset of wells)
         scaling       = 'linear'    % 'linear'/'log'/'exp'/'custom'
-        referenceValue              % parameter reference values (used for type 'multiplier') 
+        referenceValue              % parameter reference values (used for type 'multiplier')
         belongsTo                   % model/shcedule/state0/
         location                    % e.g., {'model', 'operators', 'T'}
         nParam                      % number of parameters
-        lumping                     % parameter lumping vector (partition vector) 
+        lumping                     % parameter lumping vector (partition vector)
         setfun                      % possibly custom set-function (default is setfield)
         getfun                      % (default getfield)
-        scalingBase   = nan;          
+        scalingBase   = nan;
         controlSteps  = [];         % Default set/get for all control steps
-        controlType   = 'none';     % types 'bhp', 'rate', 'orat', ... and 'policy' requires special 
+        controlType   = 'none';     % types 'bhp', 'rate', 'orat', ... and 'policy' requires special
                                     % treatment for sensitivitry computations
-        wellSubsets   = [];         % subset of individual well parameters 
+        wellSubsets   = [];         % subset of individual well parameters
         extraLocations = [];        % additional locations of parameter
-        
+
         % Enhanced properties for individual parameter scaling
         scalingFunction = [];       % Custom scaling function handle
         unscalingFunction = [];     % Custom unscaling function handle
         gradientScalingFunction = []; % Custom gradient scaling function handle
         parameterType = 'generic';  % Type identifier for parameter-specific handling
-        
+
         % NEW: Individual scaling for each parameter
         individualScaling = [];     % Cell array of scaling types for each parameter
         individualBoxLims = [];     % Individual box limits for each parameter
         parameterNames = {};        % Names of individual parameters (for 7 parameters)
         shortnames = {}
     end
-    
+
     methods
         function p = ModelParameterScaled(setup, varargin)
             [p, extra] = merge_options(p, varargin{:});
             assert(~isempty(p.name), 'Parameter name can''t be defaulted');
-            
+
             % Set parameter type based on name pattern
             p = setParameterType(p);
-            
-            if isempty(p.belongsTo) || isempty(p.location) 
+
+            if isempty(p.belongsTo) || isempty(p.location)
                 p = setupByName(p, setup);
             end
             if isempty(p.setfun)% use default
@@ -49,22 +49,22 @@ classdef ModelParameterScaled
             if isempty(p.getfun)% use default
                 p.getfun = @getfield;
             end
-            
+
             % Setup custom scaling functions based on parameter type
             p = setupCustomScaling(p);
-            
+
             opt = struct('relativeLimits', [.5 2], ...
                          'uniformLimits',  true,   ...
                          'wellSubsets',     []);
             opt = merge_options(opt, extra{:});
             p   = setupDefaults(p, setup, opt);
-            
+
             % NEW: Setup individual parameter scaling for your 7 parameters
             p = setupIndividualParameterScaling(p);
-            
+
             checkSetup(p, setup);
         end
-        
+
         %------------------------------------------------------------------
         function vs = scale(p, pval)
             % map parameter pval to "control"-vector v \in [0,1]
@@ -95,7 +95,7 @@ classdef ModelParameterScaled
                 end
             end
         end
-        
+
         %------------------------------------------------------------------
         function pval = unscale(p, vs)
             % retrieve parameter pval from "control"-vector v \in [0,1]
@@ -127,7 +127,7 @@ classdef ModelParameterScaled
                 pval = pval.*diff(p.boxLims, [], 2) + p.boxLims(:,1);
             end
         end
-        
+
         %------------------------------------------------------------------
         function gs = scaleGradient(p, g, pval)
             % map gradient wrt param to gradient vs "control"-vector
@@ -162,7 +162,7 @@ classdef ModelParameterScaled
                 end
             end
         end
-        
+
         %------------------------------------------------------------------
         % NEW: Individual scaling methods for single parameters
         function vs = scaleSingleParameter(p, pval, scaling_type, box_lims,i)
@@ -179,13 +179,13 @@ classdef ModelParameterScaled
                     vs = (pval - box_lims(1)) / (box_lims(2) - box_lims(1));
             end
         end
-        
+
         function pval = unscaleSingleParameter(p, vs, scaling_type, box_lims, i)
             switch scaling_type
                 case 'linear'
                     pval = vs * (box_lims(2) - box_lims(1)) + box_lims(1);
                 case 'log'
-                    vs = expScale(vs, p,i);                                        
+                    vs = expScale(vs, p,i);
                     pval = vs * (box_lims(2) - box_lims(1)) + box_lims(1);
                 case 'exp'
                     vs = logScale(vs, p,i);
@@ -194,13 +194,13 @@ classdef ModelParameterScaled
                     pval = vs * (box_lims(2) - box_lims(1)) + box_lims(1);
             end
         end
-        
+
         function gs = scaleGradientSingleParameter(p, g, pval, scaling_type, box_lims,i)
             switch scaling_type
                 case 'linear'
                     gs = g .* (box_lims(2) - box_lims(1));
-                case 'log'              
-                    tmp = (pval - box_lims(1)) / (box_lims(2) - box_lims(1));                 
+                case 'log'
+                    tmp = (pval - box_lims(1)) / (box_lims(2) - box_lims(1));
                     gs = g .* (box_lims(2) - box_lims(1));
                     gs = gs ./dLogScale(tmp,p,i);
                 case 'exp'
@@ -211,7 +211,7 @@ classdef ModelParameterScaled
                     gs = g * (box_lims(2) - box_lims(1));
             end
         end
-        
+
         % ... (rest of your existing methods remain the same)
         %------------------------------------------------------------------
         function g = collapseGradient(p, g)
@@ -220,10 +220,10 @@ classdef ModelParameterScaled
                 'belongs to state0'])
             % take sum of each lump
             if ~isempty(p.lumping) && isnumeric(p.lumping)
-                g = accumarray(p.lumping, g(p.subset), [], @sum); 
+                g = accumarray(p.lumping, g(p.subset), [], @sum);
             end
         end
-        
+
         function v = getParameter(p, setup)
             if ~strcmp(p.type, 'multiplier')
                 v = p.getParameterValue(setup);
@@ -232,7 +232,7 @@ classdef ModelParameterScaled
                 v = collapseLumps(v, p.lumping);
             end
         end
-        
+
         function setup = setParameter(p, setup, v)
             if ~strcmp(p.type, 'multiplier')
                 setup = p.setParameterValue(setup, v);
@@ -241,7 +241,7 @@ classdef ModelParameterScaled
                 setup = p.setParameterValue(setup, v, false);
             end
         end
-        
+
         function v = getParameterValue(p, setup, doCollapse)
             if nargin < 3
                 doCollapse = true;
@@ -257,7 +257,7 @@ classdef ModelParameterScaled
                 v  = p.getControlParameterValue(control, doCollapse);
             end
         end
-        
+
         function setup = setParameterValue(p, setup, v, doExpand)
             if nargin < 4
                 doExpand = true;
@@ -281,7 +281,7 @@ classdef ModelParameterScaled
                 end
             end
         end
-        %------------------------------------------------------------------       
+        %------------------------------------------------------------------
         function v = getControlParameterValue(p, control, doCollapse)
             if nargin < 3
                 doCollapse = true;
@@ -290,7 +290,7 @@ classdef ModelParameterScaled
             wlocIx = strcmp('W', loc);
             if any(wlocIx)
                 wlocIx = find(wlocIx);
-                % well-parameter subset applies to well numbers 
+                % well-parameter subset applies to well numbers
                 v = applyFunction(@(x)p.getfun(x, loc{wlocIx+1:end}), getfield(control, loc{2:wlocIx}, {p.subset}));
                 if ~isempty(p.wellSubsets)
                     v = applyFunction(@(x,y)x(y), v, p.wellSubsets);
@@ -301,7 +301,7 @@ classdef ModelParameterScaled
                 loc = p.location(2:end);
                 v = p.getfun(control, loc{:});
                 v = v(p.subset);
-            end      
+            end
             if doCollapse
                 v = collapseLumps(v, p.lumping);
             end
@@ -354,7 +354,7 @@ classdef ModelParameterScaled
             end
         end
     end
-    
+
        methods (Access = private)
         function p = setParameterType(p)
             % Set parameter type based on name pattern
@@ -373,7 +373,7 @@ classdef ModelParameterScaled
                 p.parameterType = 'generic';
             end
         end
-        
+
         function p = setupCustomScaling(p)
             % Setup custom scaling functions based on parameter type
             switch p.parameterType
@@ -391,7 +391,7 @@ classdef ModelParameterScaled
                     p.scaling = 'log';
             end
         end
-        
+
         function p = setupIndividualParameterScaling(p)
             % Setup individual scaling based on parameter shortnames
             % Assumes p.boxLims is always provided and never empty
@@ -469,7 +469,7 @@ function pval = unscaleBackgroundConductivity(vs, p)
     log_min = log10(min(p.boxLims(:,1)));
     log_max = log10(max(p.boxLims(:,2)));
     normalized = 10.^(vs * (log_max - log_min) + log_min);
-    
+
     if strcmp(p.type, 'multiplier')
         pval = normalized .* p.referenceValue;
     else
@@ -485,7 +485,7 @@ function gs = scaleGradientBackgroundConductivity(g, pval, p)
     else
         normalized = pval;
     end
-    
+
     log_min = log10(min(p.boxLims(:,1)));
     log_max = log10(max(p.boxLims(:,2)));
     gs = g .* normalized * (log_max - log_min) * log(10);
@@ -510,7 +510,7 @@ function pval = unscaleKappaConductivity(vs, p)
     log_min = log10(min(p.boxLims(:,1)));
     log_max = log10(max(p.boxLims(:,2)));
     normalized = 10.^(vs * (log_max - log_min) + log_min);
-    
+
     if strcmp(p.type, 'multiplier')
         pval = normalized .* p.referenceValue;
     else
@@ -526,7 +526,7 @@ function gs = scaleGradientKappaConductivity(g, pval, p)
     else
         normalized = pval;
     end
-    
+
     log_min = log10(min(p.boxLims(:,1)));
     log_max = log10(max(p.boxLims(:,2)));
     gs = g .* normalized * (log_max - log_min) * log(10);
@@ -551,7 +551,7 @@ function pval = unscaleEquivalentConductivity(vs, p)
     log_min = log10(min(p.boxLims(:,1)));
     log_max = log10(max(p.boxLims(:,2)));
     normalized = 10.^(vs * (log_max - log_min) + log_min);
-    
+
     if strcmp(p.type, 'multiplier')
         pval = normalized .* p.referenceValue;
     else
@@ -567,7 +567,7 @@ function gs = scaleGradientEquivalentConductivity(g, pval, p)
     else
         normalized = pval;
     end
-    
+
     log_min = log10(min(p.boxLims(:,1)));
     log_max = log10(max(p.boxLims(:,2)));
     gs = g .* normalized * (log_max - log_min) * log(10);
@@ -612,7 +612,7 @@ if ~isempty(p.lumping)
 else
     p.nParam = numel(v);
 end
-   
+
 if strcmp(p.type, 'multiplier')
     if any(v==0)
         error('Parameters (''%s'') of type ''multiplier'' can''t be zero.', p.name);
@@ -647,13 +647,13 @@ if isempty(p.boxLims)
                 p.boxLims = rlim;
             end
     end
-    
+
     % special treatment of saturations
     if any(strcmp(p.name, {'sw', 'sg'}))
          p.boxLims = [0, 1];
-    elseif any(v==0) 
+    elseif any(v==0)
     % check if relative limits are set for zero-value params
-        p.boxLims(v==0, 1) = -1; 
+        p.boxLims(v==0, 1) = -1;
         p.boxLims(v==0, 2) =  1;
         warning('Parameter %s contains zero-values. %s',  p.name, ...
          'Defaulting lower/upper limits (''boxLims'') to [-1 1]');
@@ -716,7 +716,7 @@ switch lower(p.name)
                                                      lower(p.name));
         p.controlType = lower(p.name);
     otherwise
-        error('No default setup for parameter: %s\n', p.name);     
+        error('No default setup for parameter: %s\n', p.name);
 end
 if isempty(p.belongsTo)
     p.belongsTo = belongsTo;
@@ -732,7 +732,7 @@ if isempty(p.getfun) && ~isempty(getfun)
 end
 end
 
-%--------------------------------------------------------------------------            
+%--------------------------------------------------------------------------
 function map = getScalerMap()
 phOpts = {'w', 'ow', 'g', 'og'};
 kw  = struct('SWL',   [1,1], 'SWCR',  [1,2], 'SWU', [1,3], ...
@@ -780,7 +780,8 @@ tmp = p.getParameter(setup);
 assert(numel(tmp)==p.nParam, 'Report error to develolper')
 assert(any(size(p.boxLims,1) == [1, p.nParam]), ...
        'The number of upper/lower limits should be 1 or nParam');
-chk = tmp >= p.boxLims(:,1)-1.0e-6 & tmp <= p.boxLims(:,2)+1.0e-6;
+tol = 1e-6 * max(abs(p.boxLims), [], 2);
+chk = tmp >= p.boxLims(:,1) - tol & tmp <= p.boxLims(:,2) + tol;
 assert(all(chk(~isnan(tmp))), 'Parameter values are not within given limits');
 if ~strcmp(p.controlType, 'none')
     assert(any(strcmp(p.controlType, {'bhp', 'rate', 'wrat', 'orat', 'grat', 'policy'})), ...
@@ -792,7 +793,7 @@ if ~isempty(p.extraLocations)
 end
 end
 
-%--------------------------------------------------------------------------    
+%--------------------------------------------------------------------------
 function model = setPermeabilityFun(model, varargin)
 % utility for setting permx/y/z possibly as AD and include effect on
 % transmissibilities
@@ -825,7 +826,7 @@ else
 end
 end
 
-%--------------------------------------------------------------------------    
+%--------------------------------------------------------------------------
 function state = setSaturationFun(state, varargin)
 assert(nargin >= 3, 'Insufficient input')
 [loc, v, oix] = deal(varargin(1:end-2), varargin{end-1}, varargin{end});
@@ -836,7 +837,7 @@ state.s(:, pix) = v;
 state.s(:, oix) =  state.s(:, oix) - ds;
 end
 
-%--------------------------------------------------------------------------   
+%--------------------------------------------------------------------------
 function model = setRelPermScalersFun(model, varargin)
 [loc, v] = deal(varargin(1:end-1), varargin{end});
 if ~isa(v, 'ADI')
@@ -856,7 +857,7 @@ else
 end
 end
 
-%--------------------------------------------------------------------------   
+%--------------------------------------------------------------------------
 function v = getWellControlValue(w, varargin)
 % don't use location
 cntr = varargin{end};
@@ -872,7 +873,7 @@ else
 end
 end
 
-%--------------------------------------------------------------------------   
+%--------------------------------------------------------------------------
 function w = setWellControlValue(w, varargin)
 % don't use location
 [v, cntr] = deal(varargin{end-1}, varargin{end});
@@ -891,7 +892,7 @@ if ~ok
 end
 end
 
-%--------------------------------------------------------------------------          
+%--------------------------------------------------------------------------
 function ti = perm2directionalTrans(model, p, cdir)
 % special utility function for calculating transmissibility along coordinate direction cdir
 assert(size(p,2)==1, ...
@@ -909,7 +910,7 @@ if isa(p, 'ADI')
 end
 end
 
-%--------------------------------------------------------------------------       
+%--------------------------------------------------------------------------
 function vs = expScale(v, p, i)
 base = getScalingBase(p);
 if isempty(i)
@@ -919,7 +920,7 @@ else
 end
 end
 
-%--------------------------------------------------------------------------       
+%--------------------------------------------------------------------------
 function ds = dExpScale(v, p,i)
 base = getScalingBase(p);
 if isempty(i)
@@ -929,7 +930,7 @@ ds = (base(i).^v).*(log(base(i))./(base(i) - 1));
 end
 end
 
-%--------------------------------------------------------------------------       
+%--------------------------------------------------------------------------
 function vs = logScale(v, p,i)
 base = getScalingBase(p);
 if isempty(i)
@@ -939,7 +940,7 @@ else
 end
 end
 
-%--------------------------------------------------------------------------       
+%--------------------------------------------------------------------------
 function ds = dLogScale(v, p,i)
 base = getScalingBase(p);
 if isempty(i)
@@ -949,7 +950,7 @@ else
 end
 end
 
-%--------------------------------------------------------------------------     
+%--------------------------------------------------------------------------
 function base = getScalingBase(p)
 base = p.scalingBase;
 if isnan(base)
@@ -957,7 +958,7 @@ if isnan(base)
 end
 end
 
-%--------------------------------------------------------------------------     
+%--------------------------------------------------------------------------
 function p = handleWellLumping(p, setup)
 % This is a bit intricate
 assert(strcmp(p.belongsTo, 'schedule'), 'Expected parameter to be of schedule-type');
