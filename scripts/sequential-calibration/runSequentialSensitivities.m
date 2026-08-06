@@ -117,6 +117,16 @@ for index = 1:numel(parameterSetter.shortnames)
             parameterSetter.shortnames{index}, sensitivities(index));
 end
 
+% Plot sensitivities
+figure;
+bar(abs(sensitivities));
+set(gca, 'XTick', 1:numel(parameterSetter.shortnames), ...
+         'XTickLabel', strrep(parameterSetter.shortnames, '_', '\_'), ...
+         'XTickLabelRotation', 45);
+ylabel('Sensitivity');
+title('Sensitivities of Parameters');
+
+
 result = struct( ...
     'shortnames', {parameterSetter.shortnames}, ...
     'sensitivities', sensitivities, ...
