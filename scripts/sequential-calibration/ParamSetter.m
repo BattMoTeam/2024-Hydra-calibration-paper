@@ -83,19 +83,19 @@ classdef ParamSetter
 
             specs(end+1) = struct('shortname', 'ne_vsa', ...
                                   'location' , {{ne, co, am, itf, 'volumetricSurfaceArea'}}, ...
-                                  'boxLim'   , [1e4, 1e7]);
+                                  'boxLim'   , [1e4, 1e9]);
 
             specs(end+1) = struct('shortname', 'pe_vsa', ...
                                   'location' , {{pe, co, am, itf, 'volumetricSurfaceArea'}}, ...
-                                  'boxLim'   , [1e4, 1e10]);
+                                  'boxLim'   , [1e5, 1e11]);
 
             specs(end+1) = struct('shortname', 'ne_bg', ...
                                   'location' , {{ne, co, 'bruggemanCoefficient'}}, ...
-                                  'boxLim'   , [1e-10, 10]);
+                                  'boxLim'   , [1e-10, 20]);
 
             specs(end+1) = struct('shortname', 'pe_bg', ...
                                   'location' , {{pe, co, 'bruggemanCoefficient'}}, ...
-                                  'boxLim'   , [1e-10, 10]);
+                                  'boxLim'   , [1e-10, 20]);
 
             specs(end+1) = struct('shortname', 'ne_D', ...
                                   'location' , {{ne, co, am, sd, 'referenceDiffusionCoefficient'}}, ...
@@ -314,6 +314,14 @@ classdef ParamSetter
             printer = @(s) disp(jsonencode(s, 'PrettyPrint', true));
             vals = paramsetter.setFromVector(X);
             printer(vals);
+
+        end
+
+        function printBoxLims(paramsetter)
+
+            tbl = table(paramsetter.shortnames, paramsetter.boxLims(:,1), paramsetter.boxLims(:,2), ...
+                        'VariableNames', {'Shortname', 'LowerLimit', 'UpperLimit'});
+            disp(tbl);
 
         end
 
