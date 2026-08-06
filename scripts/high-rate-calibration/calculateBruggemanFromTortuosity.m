@@ -1,4 +1,4 @@
-function bman = calculateBruggemanFromTortuosity(model, jsonstructEC, tortuosityRef)
+function json = calculateBruggemanFromTortuosity(model, jsonstructEC, tortuosityRef, bruggemandef)
 
     am    = 'ActiveMaterial';
     itf   = 'Interface';
@@ -10,11 +10,38 @@ function bman = calculateBruggemanFromTortuosity(model, jsonstructEC, tortuosity
     elyte = 'Electrolyte';
     sep   = 'Separator';
 
-    bruggeman = @(vf, tau) -log(tau)/log(vf);
+    if nargin == 3
+        bruggemandef = 'landesfeind';
+    else
+        bruggemandef = 'newman';
+    end
 
-    bman = struct(pe, bruggeman(jsonstructEC.(pe).(co).volumeFraction, tortuosityRef.(pe)), ...
-                  ne, bruggeman(jsonstructEC.(ne).(co).volumeFraction, tortuosityRef.(ne)), ...
-                  sep, bruggeman(1 - model.(sep).porosity, tortuosityRef.(sep)));
+    switch bruggemandef
+      case 'landesfeind'
+        bruggeman = @(vf, tau) -log(tau)/log(vf);
+      otherwise
+        bruggeman = @(vf, tau) 1 - log(tau)/log(vf);
+    end
+
+    % Get volume fraction from provided jsonstruct or model
+    if isempty(jsonstructEC)
+        obj = model;
+    else
+        obj = jsonstructEC;
+    end
+
+    ne_bg = bruggeman(obj.(ne).(co).volumeFraction, tortuosityRef.(ne));
+    pe_bg = bruggeman(obj.(pe).(co).volumeFraction, tortuosityRef.(pe));
+    sep_bg = bruggeman(1 - model.(sep).porosity, tortuosityRef.(sep));
+
+    json = struct(ne, ...
+                  struct(co, ...
+                         struct('bruggemanCoefficient', ne_bg)), ...
+                  pe, ...
+                  struct(co, ...
+                         struct('bruggemanCoefficient',  pe_bg)), ...
+                  sep, ...
+                  struct('bruggemanCoefficient', sep_bg));
 
 end
 
