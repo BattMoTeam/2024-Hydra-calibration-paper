@@ -21,12 +21,14 @@ ad      = 'ConductingAdditive';
 
 diary(sprintf('diary-runSquentialCalibration-%s.txt', datetime('now', 'Format', 'yyyy-MM-dd-HH-mm-ss')));
 
+printer = @(s) disp(jsonencode(s, 'PrettyPrint', true));
+
 %% Configuration
 geometry = '1d';
-max_iterations = 3;
+max_iterations = 3; %
 use_equivalent_eff_cond = strcmpi(geometry, '1d');
 include_current_collectors = strcmpi(geometry, '1d');
-useRegionBruggemanCoefficients = false;
+useRegionBruggemanCoefficients = true;
 
 % Experimental data and base parameters
 datafilename = fullfile(getHydra0Dir(), 'raw-data', 'TE_1473.mat');
@@ -105,9 +107,12 @@ for iteration = 0:max_iterations
     fprintf('\n--- Sensitivity Analysis ---\n');
 
     if useRegionBruggemanCoefficients
-        shortnames = {'ne_vsa', 'pe_vsa', 'ne_bg', 'pe_bg', 'ne_D', 'pe_D', ...%'ne_j0', 'pe_j0', ...
-                      'elyte_bg_ne', 'elyte_bg_pe', 'elyte_bg_sep'};
+        % shortnames = {'ne_vsa', 'pe_vsa', 'ne_bg', 'pe_bg', 'ne_D', 'pe_D', ...%'ne_j0', 'pe_j0', ...
+        %               'elyte_bg_ne', 'elyte_bg_pe', 'elyte_bg_sep'};
         % shortnames = {'ne_vsa', 'pe_vsa', 'ne_bg', 'pe_bg', 'ne_D', 'pe_D', 'elyte_bg_ne', 'elyte_bg_pe', 'elyte_bg_sep'};
+
+        shortnames = {'ne_vsa', 'pe_vsa', 'ne_D', 'pe_D', 'elyte_bgfactor'};
+
     else
         %shortnames = {'ne_vsa', 'pe_vsa', 'ne_bg', 'pe_bg', 'ne_D', 'pe_D', 'ne_j0', 'pe_j0', 'elyte_bg'};
         shortnames = {'ne_vsa', 'pe_vsa', 'ne_D', 'pe_D', 'elyte_bg'};
@@ -338,6 +343,9 @@ for iteration = 0:max_iterations
                             'geometry', geometry, ...
                             'include_current_collectors', include_current_collectors, ...
                             'useRegionBruggemanCoefficients', useRegionBruggemanCoefficients);
+    disp('HRC params:');
+    printer(current_jsonHRC);
+    fprintf('End of iteration %g\n', iteration);
 
     % %% Check convergence
     % if iteration > 0 && abs((initial_wL2 - final_wL2) / initial_wL2) < 0.01
@@ -358,6 +366,38 @@ fprintf('%.16g\n', final_calibrated_values);
 disp(table(PS_final.shortnames(), initial_calibrated_values, final_calibrated_values, ...
            initial_group_by_shortname, ...
            'VariableNames', {'Shortname', 'InitialValue', 'FinalValue', 'InitialGroup'}))
+
+if any(strcmp(PS_final.shortnames, 'elyte_bgfactor'))
+    final_model = current_output.model;
+    optimal_bgfactor = final_model.(elyte).bgfactor;
+    region_bruggeman = final_model.(elyte).regionBruggemanCoefficients;
+
+    effective_region_bruggeman = struct( ...
+        ne, optimal_bgfactor * region_bruggeman.(ne), ...
+        pe, optimal_bgfactor * region_bruggeman.(pe), ...
+        sep, optimal_bgfactor * region_bruggeman.(sep));
+
+    fprintf('\nOptimal electrolyte Bruggeman factor: %.16g\n', optimal_bgfactor);
+    disp('Effective electrolyte region Bruggeman coefficients:');
+    printer(effective_region_bruggeman); % Can be the same value if the same bg initial guess is used
+
+    % Tortuosities
+    tags = final_model.(elyte).regionTags;
+    poro = struct();
+    poro.(ne) = unique(final_model.(elyte).volumeFraction(tags == 1));
+    poro.(pe) = unique(final_model.(elyte).volumeFraction(tags == 2));
+    poro.(sep) = unique(final_model.(elyte).volumeFraction(tags == 3));
+    assert(numel(poro.(ne)) == 1);
+    assert(numel(poro.(pe)) == 1);
+    assert(numel(poro.(sep)) == 1);
+
+    effective_bruggeman_json = struct();
+    effective_bruggeman_json.(elyte).regionBruggemanCoefficients = effective_region_bruggeman;
+    final_tortuosities = calculateTortuosityFromBruggeman(poro, effective_bruggeman_json);
+
+    disp('Final electrolyte tortuosities:');
+    printer(final_tortuosities);
+end
 
 diary off;
 
