@@ -81,6 +81,7 @@
       "thickness": 5.65e-05,
       "bruggemanCoefficient": 2.2225783202970613,
       "electronicConductivity": 62,
+      "effectiveElectronicConductivity": 62,
       "volumeFraction": 0.61,
       "Binder": {
         "density": 1320,
@@ -143,6 +144,7 @@
       "thickness": 7.65e-05,
       "bruggemanCoefficient": 2.9872983233425821,
       "electronicConductivity": 18,
+      "effectiveElectronicConductivity": 18,
       "volumeFraction": 0.66,
       "Binder": {
         "density": 1800,
