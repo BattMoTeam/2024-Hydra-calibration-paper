@@ -11,6 +11,7 @@
     "useCVswitch": true
   },
   "Electrolyte": {
+    "bgfactor": 1,
     "bruggemanCoefficient": 1.5,
     "compnames": [
       "Li",
