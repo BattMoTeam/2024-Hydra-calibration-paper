@@ -122,18 +122,26 @@ function output = runHydra(input, varargin)
     if input.useRegionBruggemanCoefficients
         jsonstruct.(elyte).useRegionBruggemanCoefficients = true;
 
+        bgFromTau = @(poro, tau) -log(tau) / log(poro);
+
         % Set if not already set (via jsonstructHRC)
         if ~isfield(jsonstruct.(elyte), rbc)
             jsonstruct.(elyte).regionBruggemanCoefficients = struct();
         end
         if ~isfield(jsonstruct.(elyte).(rbc), ne)
-            jsonstruct.(elyte).regionBruggemanCoefficients.(ne) = 1.5;
+            poro = 1 - jsonstruct.(ne).(co).volumeFraction;
+            tauref = 3.46;
+            jsonstruct.(elyte).regionBruggemanCoefficients.(ne) = bgFromTau(poro, tauref);
         end
         if ~isfield(jsonstruct.(elyte).(rbc), pe)
-            jsonstruct.(elyte).regionBruggemanCoefficients.(pe) = 1.5;
+            poro = 1 - jsonstruct.(pe).(co).volumeFraction;
+            tauref = 3.;
+            jsonstruct.(elyte).regionBruggemanCoefficients.(pe) = bgFromTau(poro, tauref);
         end
         if ~isfield(jsonstruct.(elyte).(rbc), sep)
-            jsonstruct.(elyte).regionBruggemanCoefficients.(sep) = 1.5;
+            poro = jsonstruct.(sep).porosity;
+            tauref = 4.2;
+            jsonstruct.(elyte).regionBruggemanCoefficients.(sep) = bgFromTau(poro, tauref);
         end
 
     end
