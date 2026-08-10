@@ -269,13 +269,12 @@ classdef ParamSetter
 
             if model.(elyte).useRegionBruggemanCoefficients
 
-                elyteBgShortnames = {'elyte_bg_ne', 'elyte_bg_pe', 'elyte_bg_sep', 'elyte_bgfactor'};
+                elyteBgShortnames = {'elyte_bg_ne', 'elyte_bg_pe', 'elyte_bg_sep'};
 
                 if any(ismember(sn, elyteBgShortnames))
 
                     nc = model.(elyte).G.getNumberOfCells();
                     bg = zeros(nc, 1);
-                    bgfactor = model.(elyte).bgfactor;
 
                     tagmap = struct('NegativeElectrode', 1, ...
                                     'PositiveElectrode', 2, ...
@@ -286,7 +285,7 @@ classdef ParamSetter
 
                     for i = 1:numel(regionNames)
                         region = regionNames{i};
-                        bval = bgfactor * model.(elyte).regionBruggemanCoefficients.(region);
+                        bval = model.(elyte).regionBruggemanCoefficients.(region);
                         bg = subsetPlus(bg, bval, (tags == tagmap.(region)));
                     end
 
