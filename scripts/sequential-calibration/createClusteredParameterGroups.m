@@ -148,7 +148,7 @@ function parameter_groups = physicalDomainGrouping(paramNames, sensitivities)
 
     % Sort by mean sensitivity (highest first)
     if ~isempty(parameter_groups)
-        mean_sens = [parameter_groups{:}.mean_sensitivity];
+        mean_sens = cellfun(@(group) group.mean_sensitivity, parameter_groups);
         [~, sort_idx] = sort(mean_sens, 'descend');
         parameter_groups = parameter_groups(sort_idx);
 
