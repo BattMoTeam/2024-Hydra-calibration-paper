@@ -10,12 +10,14 @@ Dnes = 1e-13;
 % tag = 'one-elyte-param';
 % tag = 'two-elyte-params';
 % tag = 'three-elyte-params';
+% tag = 'elyte-bgfactor';
 
 tags = {%'no-elyte-params', ...
         % 'one-elyte-param', ...
         % 'one-elyte-param-finers', ...
         % 'two-elyte-params', ...
-        'three-elyte-params'
+        % 'three-elyte-params', ...
+        'elyte-bgfactor'
        };
 
 doplot = true;
@@ -78,7 +80,7 @@ for itag = 1:numel(tags)
         switch tag
           case {'no-elyte-params', 'one-elyte-param', 'one-elyte-param-finer'}
             useRegionBruggemanCoefficients = false;
-          case {'two-elyte-params', 'three-elyte-params'}
+          case {'two-elyte-params', 'three-elyte-params', 'elyte-bgfactor'}
             useRegionBruggemanCoefficients = true;
           otherwise
             error('Unexpected tag %s', tag);
@@ -331,7 +333,25 @@ for itag = 1:numel(tags)
         assert(isscalar(vfs.(ne)));
         assert(isscalar(vfs.(pe)));
         assert(isscalar(vfs.(sep)));
-        tau = calculateTortuosityFromBruggeman(vfs, jsonstructHRC);
+
+        if useRegionBruggemanCoefficients
+            bgfactor = outputOpt.model.(elyte).bgfactor;
+            regionBruggeman = outputOpt.model.(elyte).regionBruggemanCoefficients;
+            effectiveRegionBruggeman = struct( ...
+                ne , bgfactor .* regionBruggeman.(ne), ...
+                pe , bgfactor .* regionBruggeman.(pe), ...
+                sep, bgfactor .* regionBruggeman.(sep));
+        else
+            bg = outputOpt.model.(elyte).bruggemanCoefficient;
+            assert(isscalar(bg));
+            effectiveRegionBruggeman = struct(ne, bg, pe, bg, sep, bg);
+        end
+
+        tortuosityParams = struct();
+        tortuosityParams.(elyte).regionBruggemanCoefficients = effectiveRegionBruggeman;
+        tau = calculateTortuosityFromBruggeman(vfs, tortuosityParams);
+        disp('Effective electrolyte region Bruggeman coefficients:');
+        printer(effectiveRegionBruggeman);
         disp('Tortuosities:');
         printer(tau);
 

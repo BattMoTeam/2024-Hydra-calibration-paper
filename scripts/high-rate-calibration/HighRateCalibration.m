@@ -92,6 +92,15 @@ classdef HighRateCalibration
                                                                    {elyte, rbc, pe}; ...
                                                                    {elyte, rbc, sep}]}); % location for print
 
+              case 'elyte-bgfactor'
+
+                HRC.customParamsSpec{end+1} = struct('name', 'elyte_bgfactor', ...
+                                                     'boxLims', [0.1, 10], ...
+                                                     'scaling', 'linear', ...
+                                                     'getfun', @(model, ~) getElyteBgfactor(model), ...
+                                                     'setfun', @(model, ~, v) setElyteBgfactor(model, v), ...
+                                                     'location', {{elyte, 'bgfactor'}});
+
               otherwise
                 error('Unknown tag: %s', HRC.tag);
             end
@@ -247,6 +256,47 @@ function model = setElyteBruggeman(model, vals, tag)
 
     model.(elyte).bruggemanCoefficient = bg;
     model.(elyte).regionBruggemanCoefficients = bvals;
+
+end
+
+
+function v = getElyteBgfactor(model)
+
+    elyte = 'Electrolyte';
+    v = model.(elyte).bgfactor;
+
+end
+
+
+function model = setElyteBgfactor(model, v)
+
+    assert(~model.use_thermal);
+
+    elyte = 'Electrolyte';
+    model.(elyte).bgfactor = v;
+    model = updateElyteBruggemanCoefficient(model);
+
+end
+
+
+function model = updateElyteBruggemanCoefficient(model)
+
+    elyte = 'Electrolyte';
+    ne    = 'NegativeElectrode';
+    pe    = 'PositiveElectrode';
+    sep   = 'Separator';
+
+    nc       = model.(elyte).G.getNumberOfCells();
+    tags     = model.(elyte).regionTags;
+    bvals    = model.(elyte).regionBruggemanCoefficients;
+    bgfactor = model.(elyte).bgfactor;
+
+    bg = zeros(nc, 1);
+    bg = subsetPlus(bg, bgfactor .* bvals.(ne), (tags == 1));
+    bg = subsetPlus(bg, bgfactor .* bvals.(pe), (tags == 2));
+    bg = subsetPlus(bg, bgfactor .* bvals.(sep), (tags == 3));
+
+    model.(elyte).bruggemanCoefficient = bg;
 
 end
 
