@@ -18,7 +18,6 @@ function startup()
 
     mrstModule add ad-core optimization mpfa
 
-
     fprintf('\nCurrent directory: %s\n\n', pwd());
 
 end
@@ -51,6 +50,15 @@ function battmo = resolveBattMoPath(repoRoot)
         if isfolder(c) && isfile(fullfile(c, 'startupBattMo.m'))
             battmo = c;
             fprintf('Using BattMo path: %s\n', battmo);
+
+            % Check that the current branch is august/hydra-bgfactor
+            gitBranch = strtrim(git('rev-parse', '--abbrev-ref', 'HEAD', c));
+            if ~contains(gitBranch, 'august/hydra-bgfactor')
+                error(['The BattMo repository is on branch "%s". Please ', ...
+                         'switch to the "august/hydra-bgfactor" branch for compatibility with this ', ...
+                         'repository.'], gitBranch);
+            end
+
             return;
         end
     end
