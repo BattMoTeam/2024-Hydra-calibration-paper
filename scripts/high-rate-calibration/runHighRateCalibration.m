@@ -4,6 +4,7 @@ clear all
 close all
 
 Dnes = [1e-14, 1e-13]; % Do 1e-13 last as this is the one to use
+Dnes = 1e-13;
 
 % tag = 'no-elyte-params';
 % tag = 'one-elyte-param';
@@ -17,7 +18,7 @@ tags = {%'no-elyte-params', ...
         'three-elyte-params'
        };
 
-doplot = false;
+doplot = true;
 
 for itag = 1:numel(tags)
     tag = tags{itag};
@@ -101,6 +102,9 @@ for itag = 1:numel(tags)
             numTimesteps = 100;
         end
 
+        % printer(bruggeman)
+        % keyboard;
+
         % Initial guess
         input0 = struct('DRate'                         , expdata.I / cap * hour        , ...
                         'totalTime'                     , expdata.time(end)             , ...
@@ -110,10 +114,10 @@ for itag = 1:numel(tags)
                         'Dpe'                           , Dpe                           , ...
                         'useRegionBruggemanCoefficients', useRegionBruggemanCoefficients,  ...
                         'include_current_collectors'    , true                          , ...
-                        'ne_bman'                       , bruggeman.(ne)                , ...
-                        'pe_bman'                       , bruggeman.(pe)                , ...
-                        'sep_bman'                      , bruggeman.(sep));
-        output0 = runHydra(input0, 'clearSimulation', true);
+                        'ne_bman'                       , bruggeman.(ne).(co).bruggemanCoefficient, ...
+                        'pe_bman'                       , bruggeman.(pe).(co).bruggemanCoefficient, ...
+                        'sep_bman'                      , bruggeman.(sep).bruggemanCoefficient);
+        output0 = runHydra(input0, 'clearSimulation', false);
 
         if debug
             % Check how exp and initial guess compare
@@ -154,17 +158,20 @@ for itag = 1:numel(tags)
             drawnow
         end
 
-        simulatorSetup = struct('model'   , output0.model   , ...
-                                'schedule', output0.schedule, ...
-                                'state0'  , output0.initstate);
+        simulatorSetup = SimulationSetup( ...
+            struct('model'          , output0.model   , ...
+                   'schedule'       , output0.schedule, ...
+                   'initstate'      , output0.initstate, ...
+                   'NonLinearSolver', output0.nls     , ...
+                   'OutputMinisteps', false));
 
         % Setup parameters to be calibrated
         HRC = HighRateCalibration(simulatorSetup, tag);
         parameters = HRC.getParams();
 
         % Objective function
-        lsq = @(model, states, schedule, varargin) leastSquaresEI(model, states, statesExp, schedule, varargin{:});
-        v = lsq(simulatorSetup.model, output0.states, simulatorSetup.schedule);
+        lsq = @(simsetup, states, varargin) leastSquaresEI(simsetup, states, statesExp, varargin{:});
+        v = lsq(simulatorSetup, output0.states);
         scaling = sum([v{:}]);
 
         objective = @(p, varargin) evalObjectiveBattmo(p, lsq, simulatorSetup, parameters, ...
@@ -173,7 +180,7 @@ for itag = 1:numel(tags)
         if debug
             % The least squares function evaluated at the experimental values
             % should be zero
-            v = lsq(output0.model, statesExp, simulatorSetup.schedule);
+            v = lsq(simulatorSetup, statesExp);
             assert(norm([v{:}]) == 0.0);
 
             % Compare gradients calculated using adjoints and finite
@@ -206,7 +213,8 @@ for itag = 1:numel(tags)
                                                    'doplot', doplot);
 
         [vopt, Xopt, history] = unitBoxBFGS(X0, objective, ...
-                                            'objChangeTol', 1e-8 , ...
+                                            'objChangeTol', -inf , ...
+                                            'gradTol', 1e-8 , ...
                                             'maximize'    , false, ...
                                             'maxit'       , 150  , ...
                                             'logPlot'     , true, ...
@@ -240,10 +248,10 @@ for itag = 1:numel(tags)
                           'highRateParams'                , jsonstructHRC                 , ...
                           'useRegionBruggemanCoefficients', useRegionBruggemanCoefficients, ...
                           'include_current_collectors'    , true);
-        outputOpt = runHydra(inputOpt);
+        outputOpt = runHydra(inputOpt, 'clearSimulation', false);
 
         %% Quantify differences
-        vfinal = lsq(outputOpt.model, outputOpt.states, simulatorSetup.schedule);
+        vfinal = lsq(simulatorSetup, outputOpt.states);
 
         expdataUinterp1 = @(t) interp1(expdata.time, expdata.U, t, 'linear', 'extrap');
         tt = getTime(outputOpt.states);
@@ -303,7 +311,15 @@ for itag = 1:numel(tags)
 
         % Postprocess: Report effective electrode conductivities and
         % electrolyte tortuosities
-        tau = calculateTortuosityFromBruggeman(outputOpt.model, jsonstructHRC);
+        regionTags = outputOpt.model.(elyte).regionTags;
+        vfs = struct();
+        vfs.(ne)  = unique(outputOpt.model.(elyte).volumeFraction(regionTags == 1));
+        vfs.(pe)  = unique(outputOpt.model.(elyte).volumeFraction(regionTags == 2));
+        vfs.(sep) = unique(outputOpt.model.(elyte).volumeFraction(regionTags == 3));
+        assert(isscalar(vfs.(ne)));
+        assert(isscalar(vfs.(pe)));
+        assert(isscalar(vfs.(sep)));
+        tau = calculateTortuosityFromBruggeman(vfs, jsonstructHRC);
         disp('Tortuosities:');
         printer(tau);
 
