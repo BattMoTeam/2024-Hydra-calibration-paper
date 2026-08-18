@@ -1,21 +1,15 @@
 function output = runHydra(input, varargin)
 
     % Input parameters
-    input_default = struct('DRate'                         , []   , ...
-                           'I', [], ...
+    input_default = struct('I', [], ...
+                           'DRate'                         , []   , ...
                            'totalTime'                     , []   , ...
                            'numTimesteps'                  , 100  , ...
                            'lowRateParams'                 , []   , ...
                            'highRateParams'                , []   , ...
-                           'useExpDiffusion'               , false, ...
-                           'Dne'                           , []   , ...
-                           'Dpe'                           , []   , ...
                            'useRegionBruggemanCoefficients', false, ...
                            'include_current_collectors'    , false, ...
-                           'geometry'                      , '1d' , ...
-                           'ne_bman'                       , []   , ...
-                           'pe_bman'                       , []   ,  ...
-                           'sep_bman'                      , []);
+                           'geometry'                      , '1d');
 
     if not(isempty(input))
         fds = fieldnames(input);
@@ -58,35 +52,54 @@ function output = runHydra(input, varargin)
 
     jsonstruct.include_current_collectors = input.include_current_collectors;
 
-    % Use experimental diffusion if requested
-    if input.useExpDiffusion
-        assert(isempty(input.highRateParams), ...
-               'Should not use experimental diffusion and high rate params simultaneously');
+    % % Use experimental diffusion if requested
+    % if input.useExpDiffusion
+    %     assert(isempty(input.highRateParams), ...
+    %            'Should not use experimental diffusion and high rate params simultaneously');
 
-        eldes = {ne, pe};
-        for ielde = 1:numel(eldes)
-            elde = eldes{ielde};
+    %     eldes = {ne, pe};
+    %     for ielde = 1:numel(eldes)
+    %         elde = eldes{ielde};
 
-            % Remove existing diffusion params
-            assert(isfield(jsonstruct.(elde).(co).(am).(sd), 'referenceDiffusionCoefficient'), ...
-                   'Expected diffusion parameters to be present in the base json');
-            jsonstruct.(elde).(co).(am).(sd) = rmfield(jsonstruct.(elde).(co).(am).(sd), 'referenceDiffusionCoefficient');
+    %         % Remove existing diffusion params
+    %         assert(isfield(jsonstruct.(elde).(co).(am).(sd), 'referenceDiffusionCoefficient'), ...
+    %                'Expected diffusion parameters to be present in the base json');
+    %         jsonstruct.(elde).(co).(am).(sd) = rmfield(jsonstruct.(elde).(co).(am).(sd), 'referenceDiffusionCoefficient');
 
-            % Add experimental diffusion params
-            switch elde
-              case ne
-                functionname = 'computeDanodeH0b';
-              case pe
-                functionname = 'computeDcathodeH0b';
-              otherwise
-                error('Unexpected electrode %s', elde);
-            end
-            jsonstruct_diffusion = struct('type', 'function', ...
-                                          'functionname', functionname, ...
-                                          'argumentlist', 'soc');
-            jsonstruct.(elde).(co).(am).(sd).diffusionCoefficient = jsonstruct_diffusion;
-        end
-    end
+    %         % Add experimental diffusion params
+    %         switch elde
+    %           case ne
+    %             functionname = 'computeDanodeH0b';
+    %           case pe
+    %             functionname = 'computeDcathodeH0b';
+    %           otherwise
+    %             error('Unexpected electrode %s', elde);
+    %         end
+    %         jsonstruct_diffusion = struct('type', 'function', ...
+    %                                       'functionname', functionname, ...
+    %                                       'argumentlist', 'soc');
+    %         jsonstruct.(elde).(co).(am).(sd).diffusionCoefficient = jsonstruct_diffusion;
+    %     end
+    % end
+
+    % % Set input diffusion
+    % if not(isempty(input.Dne))
+    %     jsonstruct.(ne).(co).(am).(sd).referenceDiffusionCoefficient = input.Dne;
+    % end
+    % if not(isempty(input.Dpe))
+    %     jsonstruct.(pe).(co).(am).(sd).referenceDiffusionCoefficient = input.Dpe;
+    % end
+
+    % % Set input Bruggeman coefficients
+    % if not(isempty(input.ne_bman))
+    %     jsonstruct.(ne).(co).bruggemanCoefficient = input.ne_bman;
+    % end
+    % if not(isempty(input.pe_bman))
+    %     jsonstruct.(pe).(co).bruggemanCoefficient = input.pe_bman;
+    % end
+    % if not(isempty(input.sep_bman))
+    %     jsonstruct.(sep).bruggemanCoefficient = input.sep_bman;
+    % end
 
     % Set low rate params
     if not(isempty(input.lowRateParams))
@@ -100,27 +113,22 @@ function output = runHydra(input, varargin)
         jsonstruct = mergeStructs({jsonstruct_high_rate_params, jsonstruct}, 'warn', false);
     end
 
-    % Set input diffusion
-    if not(isempty(input.Dne))
-        jsonstruct.(ne).(co).(am).(sd).referenceDiffusionCoefficient = input.Dne;
-    end
-    if not(isempty(input.Dpe))
-        jsonstruct.(pe).(co).(am).(sd).referenceDiffusionCoefficient = input.Dpe;
-    end
-
-    % Set input Bruggeman coefficients
-    if not(isempty(input.ne_bman))
-        jsonstruct.(ne).(co).bruggemanCoefficient = input.ne_bman;
-    end
-    if not(isempty(input.pe_bman))
-        jsonstruct.(pe).(co).bruggemanCoefficient = input.pe_bman;
-    end
-    if not(isempty(input.sep_bman))
-        jsonstruct.(sep).bruggemanCoefficient = input.sep_bman;
-    end
-
     if input.useRegionBruggemanCoefficients
         jsonstruct.(elyte).useRegionBruggemanCoefficients = true;
+
+        %     % Set if not already set (via jsonstructHRC)
+        %     if ~isfield(jsonstruct.(elyte), rbc)
+        %         jsonstruct.(elyte).regionBruggemanCoefficients = struct();
+        %     end
+        %     if ~isfield(jsonstruct.(elyte).(rbc), ne)
+        %         jsonstruct.(elyte).regionBruggemanCoefficients.(ne) = 1.5;
+        %     end
+        %     if ~isfield(jsonstruct.(elyte).(rbc), pe)
+        %         jsonstruct.(elyte).regionBruggemanCoefficients.(pe) = 1.5;
+        %     end
+        %     if ~isfield(jsonstruct.(elyte).(rbc), sep)
+        %         jsonstruct.(elyte).regionBruggemanCoefficients.(sep) = 1.5;
+        %     end
 
         bgFromTau = @(poro, tau) -log(tau) / log(poro);
 
@@ -143,7 +151,6 @@ function output = runHydra(input, varargin)
             tauref = 4.2;
             jsonstruct.(elyte).regionBruggemanCoefficients.(sep) = bgFromTau(poro, tauref);
         end
-
     end
 
     % Load geometry
@@ -187,6 +194,11 @@ function output = runHydra(input, varargin)
     paramobj = BatteryInputParams(jsonstruct);
     paramobj = setupBatteryGridFromJson(paramobj, jsonstruct);
 
+    % Set rate if provided
+    if not(isempty(input.DRate))
+        paramobj.(ctrl).DRate = input.DRate;
+    end
+
     % Validate before building model
     paramobj = paramobj.validateInputParams();
     model = GenericBattery(paramobj);
@@ -194,7 +206,6 @@ function output = runHydra(input, varargin)
     % Set rate or current
     hasDRate = not(isempty(input.DRate));
     hasI = not(isempty(input.I));
-
     if hasDRate && hasI
         error('Specify either DRate or I, not both');
     end
@@ -313,12 +324,6 @@ function output = runHydra(input, varargin)
         end
 
     else
-
-        if not(opt.runSimulation)
-            output.states = {};
-            output.input = input;
-            return
-        end
 
         [~, output.states] = simulateScheduleAD(initstate, model, schedule, ...
                                                 'OutputMinisteps', true, ...

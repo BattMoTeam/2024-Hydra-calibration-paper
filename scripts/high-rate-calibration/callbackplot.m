@@ -42,7 +42,7 @@ function callbackplot(history, it, simulatorSetup, parameters, statesExp, vararg
         setup = updateSetupFromScaledParameters(simulatorSetup, parameters, X);
 
         dataFolder = md5sum(setup.model);
-        problem = packSimulationProblem(setup.state0, setup.model, setup.schedule, dataFolder, ...
+        problem = packSimulationProblem(setup.initstate, setup.model, setup.schedule, dataFolder, ...
                                         'NonLinearSolver', opt.nonLinearSolver);
         clearPackedSimulatorOutput(problem, 'Prompt', false);
         simulatePackedProblem(problem);
