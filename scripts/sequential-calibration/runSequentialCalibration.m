@@ -109,10 +109,10 @@ for iteration = 0:max_iterations
     if useRegionBruggemanCoefficients
         % shortnames = {'ne_vsa', 'pe_vsa', 'ne_bg', 'pe_bg', 'ne_D', 'pe_D', ...%'ne_j0', 'pe_j0', ...
         %               'elyte_bg_ne', 'elyte_bg_pe', 'elyte_bg_sep'};
-        % shortnames = {'ne_vsa', 'pe_vsa', 'ne_bg', 'pe_bg', 'ne_D', 'pe_D', 'elyte_bg_ne', 'elyte_bg_pe', 'elyte_bg_sep'};
 
         shortnames = {'ne_vsa', 'pe_vsa', 'ne_D', 'pe_D', 'elyte_bgfactor'};
 
+        % shortnames = {'ne_vsa', 'pe_vsa', 'ne_D', 'pe_D', 'elyte_bg_ne', 'elyte_bg_pe', 'elyte_bg_sep'};
     else
         %shortnames = {'ne_vsa', 'pe_vsa', 'ne_bg', 'pe_bg', 'ne_D', 'pe_D', 'ne_j0', 'pe_j0', 'elyte_bg'};
         shortnames = {'ne_vsa', 'pe_vsa', 'ne_D', 'pe_D', 'elyte_bg'};
@@ -209,8 +209,9 @@ for iteration = 0:max_iterations
             'priority', 1);
         OptimizationSolver = 'unitboxbfgs';
     else
-        grouping_strategy = 'hybrid_adaptive';
-        %grouping_strategy = 'magnitude'; % cannot run validation: conv problems
+        % grouping_strategy = 'hybrid_adaptive';
+        % grouping_strategy = 'magnitude';
+        grouping_strategy = 'physical';
         parameter_groups = createClusteredParameterGroups(PS.shortnames, gradient_actual, grouping_strategy, 3);
         OptimizationSolver = 'unitboxbfgs';
     end
