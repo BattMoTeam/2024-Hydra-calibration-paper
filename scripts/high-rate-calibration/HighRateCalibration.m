@@ -4,23 +4,79 @@ classdef HighRateCalibration
 
     properties
 
-        stdParams
-        customParams
-        customParamsSpec
-        tag
+        params
+        parameterSpecs
+        shortnames
+        boxLims
+        useRegionBruggemanCoefficients
 
     end
 
     methods
 
+        function HRC = HighRateCalibration(simulatorSetup, varargin)
 
-        function HRC = HighRateCalibration(simulatorSetup, tag)
+            opt = struct('shortnames', []);
+            opt = merge_options(opt, varargin{:});
 
-            if nargin < 2
-                HRC.tag = 'no-elyte-params';
-            else
-                HRC.tag = tag;
+            elyte = 'Electrolyte';
+            HRC.useRegionBruggemanCoefficients = ...
+                simulatorSetup.model.(elyte).useRegionBruggemanCoefficients;
+
+            specs = HRC.parameterCatalog();
+            availableShortnames = {specs.shortname};
+
+            if ~isempty(opt.shortnames)
+                selected = HighRateCalibration.normalizeShortnames(opt.shortnames);
+
+                if numel(unique(selected)) ~= numel(selected)
+                    error('The ''shortnames'' list contains duplicates.');
+                end
+
+                [tf, idx] = ismember(selected, availableShortnames);
+                if ~all(tf)
+                    bad = selected(~tf);
+                    error('Unknown or unavailable shortnames: %s', strjoin(bad, ', '));
+                end
+
+                specs = specs(idx); % preserve user-specified order
             end
+
+            assert(~isempty(specs), 'At least one parameter must be selected.');
+
+            HRC.parameterSpecs = reshape(specs, [], 1);
+            HRC.shortnames = reshape({specs.shortname}, [], 1);
+            HRC.boxLims = vertcat(specs.boxLim);
+            HRC.params = cell(numel(specs), 1);
+
+            for index = 1:numel(specs)
+                spec = specs(index);
+
+                if isempty(spec.getfun)
+                    HRC.params{index} = ModelParameter( ...
+                        simulatorSetup, ...
+                        'name'     , spec.shortname, ...
+                        'belongsTo', 'model', ...
+                        'boxLims'  , spec.boxLim, ...
+                        'scaling'  , spec.scaling, ...
+                        'location' , spec.location);
+                else
+                    HRC.params{index} = ModelParameter( ...
+                        simulatorSetup, ...
+                        'name'     , spec.shortname, ...
+                        'belongsTo', 'model', ...
+                        'boxLims'  , spec.boxLim, ...
+                        'scaling'  , spec.scaling, ...
+                        'location' , {''}, ...
+                        'getfun'   , spec.getfun, ...
+                        'setfun'   , spec.setfun);
+                end
+            end
+
+        end
+
+
+        function specs = parameterCatalog(HRC)
 
             ne    = 'NegativeElectrode';
             pe    = 'PositiveElectrode';
@@ -32,133 +88,166 @@ classdef HighRateCalibration
             sep   = 'Separator';
             rbc   = 'regionBruggemanCoefficients';
 
-            eldes = {ne, pe};
+            specs = struct('shortname', {}, ...
+                           'location' , {}, ...
+                           'boxLim'   , {}, ...
+                           'scaling'  , {}, ...
+                           'getfun'   , {}, ...
+                           'setfun'   , {});
 
-            HRC.stdParams = [];
+            specs(end + 1) = struct( ...
+                'shortname', 'ne_vsa', ...
+                'location' , {{ne, co, am, itf, 'volumetricSurfaceArea'}}, ...
+                'boxLim'   , [1e4, 1e8], ...
+                'scaling'  , 'linear', ...
+                'getfun'   , @(model, ~) getVsa(model, ne), ...
+                'setfun'   , @(model, ~, v) setVsa(model, v, ne));
 
-            % Setup params with standard getfun/setfun
+            specs(end + 1) = struct( ...
+                'shortname', 'pe_vsa', ...
+                'location' , {{pe, co, am, itf, 'volumetricSurfaceArea'}}, ...
+                'boxLim'   , [1e4, 1e8], ...
+                'scaling'  , 'linear', ...
+                'getfun'   , @(model, ~) getVsa(model, pe), ...
+                'setfun'   , @(model, ~, v) setVsa(model, v, pe));
 
-            for ielde = 1:numel(eldes)
+            specs(end + 1) = struct( ...
+                'shortname', 'ne_D', ...
+                'location' , {{ne, co, am, sd, 'referenceDiffusionCoefficient'}}, ...
+                'boxLim'   , [1e-15, 1e-11], ...
+                'scaling'  , 'log', ...
+                'getfun'   , [], ...
+                'setfun'   , []);
 
-                elde = eldes{ielde};
+            specs(end + 1) = struct( ...
+                'shortname', 'pe_D', ...
+                'location' , {{pe, co, am, sd, 'referenceDiffusionCoefficient'}}, ...
+                'boxLim'   , [1e-15, 1e-11], ...
+                'scaling'  , 'log', ...
+                'getfun'   , [], ...
+                'setfun'   , []);
 
-                HRC.stdParams = addParameter(HRC.stdParams, ...
-                                             simulatorSetup, ...
-                                             'name'     , sprintf('%s_vsa', elde), ...
-                                             'belongsTo', 'model'                , ...
-                                             'boxLims'  , [1e4, 1e8]             , ...
-                                             'location' , {elde, co, am, itf, 'volumetricSurfaceArea'});
+            specs(end + 1) = struct( ...
+                'shortname', 'ne_bg', ...
+                'location' , {{ne, co, 'bruggemanCoefficient'}}, ...
+                'boxLim'   , [0.1, 10], ...
+                'scaling'  , 'linear', ...
+                'getfun'   , @(model, ~) getEldeBruggeman(model, ne), ...
+                'setfun'   , @(model, ~, v) setEldeBruggeman(model, v, ne));
 
-                HRC.stdParams = addParameter(HRC.stdParams, ...
-                                             simulatorSetup, ...
-                                             'name'     , sprintf('%s_D0', elde), ...
-                                             'belongsTo', 'model'               , ...
-                                             'boxLims'  , [1e-15, 1e-11]        , ...
-                                             'scaling'  , 'log'                 , ...
-                                             'location' , {elde, co, am, sd, 'referenceDiffusionCoefficient'});
+            specs(end + 1) = struct( ...
+                'shortname', 'pe_bg', ...
+                'location' , {{pe, co, 'bruggemanCoefficient'}}, ...
+                'boxLim'   , [0.1, 10], ...
+                'scaling'  , 'linear', ...
+                'getfun'   , @(model, ~) getEldeBruggeman(model, pe), ...
+                'setfun'   , @(model, ~, v) setEldeBruggeman(model, v, pe));
+
+            if HRC.useRegionBruggemanCoefficients
+                specs(end + 1) = struct( ...
+                    'shortname', 'elyte_bg_ne', ...
+                    'location' , {{elyte, rbc, ne}}, ...
+                    'boxLim'   , [0.1, 10], ...
+                    'scaling'  , 'linear', ...
+                    'getfun'   , @(model, ~) getElyteRegionBruggeman(model, ne), ...
+                    'setfun'   , @(model, ~, v) setElyteRegionBruggeman(model, v, ne));
+
+                specs(end + 1) = struct( ...
+                    'shortname', 'elyte_bg_pe', ...
+                    'location' , {{elyte, rbc, pe}}, ...
+                    'boxLim'   , [0.1, 10], ...
+                    'scaling'  , 'linear', ...
+                    'getfun'   , @(model, ~) getElyteRegionBruggeman(model, pe), ...
+                    'setfun'   , @(model, ~, v) setElyteRegionBruggeman(model, v, pe));
+
+                specs(end + 1) = struct( ...
+                    'shortname', 'elyte_bg_sep', ...
+                    'location' , {{elyte, rbc, sep}}, ...
+                    'boxLim'   , [0.1, 10], ...
+                    'scaling'  , 'linear', ...
+                    'getfun'   , @(model, ~) getElyteRegionBruggeman(model, sep), ...
+                    'setfun'   , @(model, ~, v) setElyteRegionBruggeman(model, v, sep));
+
+                specs(end + 1) = struct( ...
+                    'shortname', 'elyte_bgfactor', ...
+                    'location' , {{elyte, 'bgfactor'}}, ...
+                    'boxLim'   , [0.1, 10], ...
+                    'scaling'  , 'linear', ...
+                    'getfun'   , @(model, ~) getElyteBgfactor(model), ...
+                    'setfun'   , @(model, ~, v) setElyteBgfactor(model, v));
+            else
+                specs(end + 1) = struct( ...
+                    'shortname', 'elyte_bg', ...
+                    'location' , {{elyte, 'bruggemanCoefficient'}}, ...
+                    'boxLim'   , [0.1, 10], ...
+                    'scaling'  , 'linear', ...
+                    'getfun'   , [], ...
+                    'setfun'   , []);
             end
 
-            % Setup params with custom getfun/setfun
-            HRC.customParamsSpec{1} = struct('name', 'eldes_bruggeman', ...
-                                             'boxLims', [0.1, 10], ...
-                                             'scaling', 'linear', ...
-                                             'getfun', @(model, ~) getEldeBruggeman(model), ...
-                                             'setfun', @(model, ~, v) setEldeBruggeman(model, v), ...
-                                             'location', {[{ne, co, 'bruggemanCoefficient'}; ...
-                                                           {pe, co, 'bruggemanCoefficient'}]}); % location for printing
+        end
 
-            switch HRC.tag
-              case 'no-elyte-params'
-                % Do nothing
 
-              case {'one-elyte-param', 'one-elyte-param-finer'}
+        function specs = selectedParameterCatalog(HRC)
 
-                HRC.stdParams = addParameter(HRC.stdParams, ...
-                                             simulatorSetup, ...
-                                             'name'     , 'elyte_bruggman', ...
-                                             'belongsTo', 'model'                           , ...
-                                             'boxLims'  , [0.1, 10]                         , ...
-                                             'scaling'  , 'linear'                          , ...
-                                             'location' , {elyte, 'bruggemanCoefficient'});
+            specs = HRC.parameterSpecs;
 
-              case {'two-elyte-params', 'three-elyte-params'}
+        end
 
-                HRC.customParamsSpec{end+1} = struct('name', 'elyte_bruggman', ...
-                                                     'boxLims', [0.1, 10], ...
-                                                     'scaling', 'linear', ...
-                                                     'getfun', @(model, ~) getElyteBruggeman(model, tag), ...
-                                                     'setfun', @(model, ~, v) setElyteBruggeman(model, v, tag), ...
-                                                     'location', {[{elyte, rbc, ne}; ...
-                                                                   {elyte, rbc, pe}; ...
-                                                                   {elyte, rbc, sep}]}); % location for print
 
-              case 'elyte-bgfactor'
+        function locs = locations(HRC)
 
-                HRC.customParamsSpec{end+1} = struct('name', 'elyte_bgfactor', ...
-                                                     'boxLims', [0.1, 10], ...
-                                                     'scaling', 'linear', ...
-                                                     'getfun', @(model, ~) getElyteBgfactor(model), ...
-                                                     'setfun', @(model, ~, v) setElyteBgfactor(model, v), ...
-                                                     'location', {{elyte, 'bgfactor'}});
-
-              otherwise
-                error('Unknown tag: %s', HRC.tag);
-            end
-
-            % Convert spec to ModelParameter instances
-            HRC.customParams = cell(numel(HRC.customParamsSpec), 1);
-
-            for k = 1:numel(HRC.customParamsSpec)
-
-                spec = HRC.customParamsSpec{k};
-
-                HRC.customParams{k} = ModelParameter(simulatorSetup, ...
-                                                     'name', spec.name, ...
-                                                     'belongsTo', 'model', ...
-                                                     'boxLims', spec.boxLims, ...
-                                                     'scaling', spec.scaling, ...
-                                                     'location', {''}, ...
-                                                     'getfun', spec.getfun, ...
-                                                     'setfun', spec.setfun);
-            end
-
-            HRC.stdParams = reshape(HRC.stdParams, [], 1);
-            HRC.customParamsSpec = reshape(HRC.customParamsSpec, [], 1);
-            HRC.customParams = reshape(HRC.customParams, [], 1);
+            specs = HRC.selectedParameterCatalog();
+            locs = reshape({specs.location}, [], 1);
 
         end
 
 
         function params = getParams(HRC)
 
-            params = [HRC.stdParams; HRC.customParams];
+            params = HRC.params;
 
         end
 
 
         function jsonstruct = export(HRC, setup)
 
-            % Standard params
-            locs_std = cellfun(@(p) p.location, HRC.stdParams, 'uniformoutput', false);
-            vals_std = cellfun(@(p) p.getParameterValue(setup), HRC.stdParams);
-
-            % Custom params
-            locs_custom = cellfun(@(p) p.location, HRC.customParamsSpec, 'uniformoutput', false);
-            vals_custom = cellfun(@(p) p.getParameterValue(setup), HRC.customParams, 'uniformoutput', false);
-
             jsonstruct = struct();
 
-            for k = 1:numel(locs_std)
-                loc = locs_std{k};
-                jsonstruct = setfield(jsonstruct, loc{:}, vals_std(k));
+            for index = 1:numel(HRC.params)
+                loc = HRC.parameterSpecs(index).location;
+                value = HRC.params{index}.getParameterValue(setup);
+                assert(isscalar(value), 'Expected scalar value for %s.', HRC.shortnames{index});
+                jsonstruct = setfield(jsonstruct, loc{:}, value);
             end
 
-            for k = 1:numel(locs_custom)
-                locs = locs_custom{k};
-                vals = vals_custom{k};
-                for i = 1:size(vals, 1) % let the vals decide
-                    jsonstruct = setfield(jsonstruct, locs{i,:}, vals(i));
-                end
+        end
+
+
+        function printBoxLims(HRC)
+
+            disp('boxLims:');
+            tbl = table(HRC.shortnames, HRC.boxLims(:, 1), HRC.boxLims(:, 2), ...
+                        'VariableNames', {'Shortname', 'LowerLimit', 'UpperLimit'});
+            disp(tbl);
+
+        end
+
+    end
+
+    methods (Static)
+
+        function shortnames = normalizeShortnames(shortnames)
+
+            if ischar(shortnames)
+                shortnames = {shortnames};
+            elseif isstring(shortnames)
+                shortnames = cellstr(shortnames(:));
+            elseif iscell(shortnames)
+                shortnames = shortnames(:);
+                shortnames = cellfun(@char, shortnames, 'UniformOutput', false);
+            else
+                error('''shortnames'' must be a char, string array, or cell array of char.');
             end
 
         end
@@ -168,112 +257,86 @@ classdef HighRateCalibration
 end
 
 
-function v = getEldeBruggeman(model)
+function value = getVsa(model, electrode)
 
-    ne = 'NegativeElectrode';
-    pe = 'PositiveElectrode';
+    co  = 'Coating';
+    am  = 'ActiveMaterial';
+    itf = 'Interface';
+
+    value = model.(electrode).(co).(am).(itf).volumetricSurfaceArea;
+
+end
+
+
+function model = setVsa(model, value, electrode)
+
+    co  = 'Coating';
+    am  = 'ActiveMaterial';
+    itf = 'Interface';
+    sd  = 'SolidDiffusion';
+
+    model.(electrode).(co).(am).(itf).volumetricSurfaceArea = value;
+    model.(electrode).(co).(am).(sd).volumetricSurfaceArea = value;
+
+end
+
+
+function value = getEldeBruggeman(model, electrode)
+
     co = 'Coating';
-    eldes = {ne, pe};
-
-    v = nan(numel(eldes), 1);
-
-    for ielde = 1:numel(eldes)
-        elde = eldes{ielde};
-        v(ielde) = model.(elde).(co).bruggemanCoefficient;
-    end
+    value = model.(electrode).(co).bruggemanCoefficient;
 
 end
 
 
-function model = setEldeBruggeman(model, vals)
+function model = setEldeBruggeman(model, value, electrode)
 
     assert(~model.use_thermal);
 
-    ne = 'NegativeElectrode';
-    pe = 'PositiveElectrode';
     co = 'Coating';
-    eldes = {ne, pe};
+    model.(electrode).(co).bruggemanCoefficient = value;
 
-    for ielde = 1:numel(eldes)
-        elde = eldes{ielde};
-
-        % Set value
-        bg = vals(ielde);
-        model.(elde).(co).bruggemanCoefficient = bg;
-
-        % Set dependencies
-        kappa = model.(elde).(co).electronicConductivity;
-        vf = model.(elde).(co).volumeFraction;
-        model.(elde).(co).effectiveElectronicConductivity = kappa*vf^bg;
-
-    end
+    kappa = model.(electrode).(co).electronicConductivity;
+    volumeFraction = model.(electrode).(co).volumeFraction;
+    model.(electrode).(co).effectiveElectronicConductivity = ...
+        kappa .* volumeFraction .^ value;
 
 end
 
 
-function v = getElyteBruggeman(model, tag)
+function value = getElyteRegionBruggeman(model, region)
 
     elyte = 'Electrolyte';
-    w = model.(elyte).regionBruggemanCoefficients;
-
-    switch tag
-      case 'two-elyte-params'
-        v = [w.NegativeElectrode;
-             w.PositiveElectrode];
-      case 'three-elyte-params'
-        v = [w.NegativeElectrode;
-             w.PositiveElectrode;
-             w.Separator];
-    end
+    value = model.(elyte).regionBruggemanCoefficients.(region);
 
 end
 
 
-function model = setElyteBruggeman(model, vals, tag)
+function model = setElyteRegionBruggeman(model, value, region)
 
     assert(~model.use_thermal);
 
     elyte = 'Electrolyte';
-    ne    = 'NegativeElectrode';
-    pe    = 'PositiveElectrode';
-    sep   = 'Separator';
-
-    nc    = model.(elyte).G.getNumberOfCells();
-    tags  = model.(elyte).regionTags;
-    bvals = model.(elyte).regionBruggemanCoefficients;
-    bvals.(ne) = vals(1);
-    bvals.(pe) = vals(2);
-
-    bg = zeros(nc, 1);
-    bg = subsetPlus(bg, bvals.(ne), (tags == 1));
-    bg = subsetPlus(bg, bvals.(pe), (tags == 2));
-
-    switch tag
-      case 'three-elyte-params'
-        bvals.(sep) = vals(3);
-        bg = subsetPlus(bg, bvals.(sep), (tags == 3));
-    end
-
-    model.(elyte).bruggemanCoefficient = bg;
-    model.(elyte).regionBruggemanCoefficients = bvals;
+    model.(elyte).regionBruggemanCoefficients.(region) = value;
+    model = updateElyteBruggemanCoefficient(model);
 
 end
 
 
-function v = getElyteBgfactor(model)
+function value = getElyteBgfactor(model)
 
     elyte = 'Electrolyte';
-    v = model.(elyte).bgfactor;
+    value = model.(elyte).bgfactor;
 
 end
 
 
-function model = setElyteBgfactor(model, v)
+function model = setElyteBgfactor(model, value)
 
     assert(~model.use_thermal);
 
     elyte = 'Electrolyte';
-    model.(elyte).bgfactor = v;
+    model.(elyte).bgfactor = value;
     model = updateElyteBruggemanCoefficient(model);
 
 end
@@ -286,19 +349,20 @@ function model = updateElyteBruggemanCoefficient(model)
     pe    = 'PositiveElectrode';
     sep   = 'Separator';
 
-    nc       = model.(elyte).G.getNumberOfCells();
-    tags     = model.(elyte).regionTags;
-    bvals    = model.(elyte).regionBruggemanCoefficients;
+    numberOfCells = model.(elyte).G.getNumberOfCells();
+    tags = model.(elyte).regionTags;
+    regionValues = model.(elyte).regionBruggemanCoefficients;
     bgfactor = model.(elyte).bgfactor;
 
-    bg = zeros(nc, 1);
-    bg = subsetPlus(bg, bgfactor .* bvals.(ne), (tags == 1));
-    bg = subsetPlus(bg, bgfactor .* bvals.(pe), (tags == 2));
-    bg = subsetPlus(bg, bgfactor .* bvals.(sep), (tags == 3));
+    bg = zeros(numberOfCells, 1);
+    bg = subsetPlus(bg, bgfactor .* regionValues.(ne), tags == 1);
+    bg = subsetPlus(bg, bgfactor .* regionValues.(pe), tags == 2);
+    bg = subsetPlus(bg, bgfactor .* regionValues.(sep), tags == 3);
 
     model.(elyte).bruggemanCoefficient = bg;
 
 end
+
 
 %{
   Copyright 2021-2026 SINTEF Industry, Sustainable Energy Technology

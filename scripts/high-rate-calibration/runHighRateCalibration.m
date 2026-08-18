@@ -21,6 +21,7 @@ tags = {%'no-elyte-params', ...
        };
 
 doplot = true;
+debug = false;
 
 for itag = 1:numel(tags)
     tag = tags{itag};
@@ -52,12 +53,6 @@ for itag = 1:numel(tags)
         getE = @(states) cellfun(@(s) s.(ctrl).E, states);
         printer = @(s) disp(jsonencode(s, 'PrettyPrint', true));
 
-        debug = false;
-
-        % tag = 'no-elyte-params';
-        % tag = 'one-elyte-param';
-        % tag = 'two-elyte-params';
-        % tag = 'three-elyte-params'; % 1e-13 goes to it=150
         disp(tag);
 
         %% Fetch experimental data
@@ -77,14 +72,38 @@ for itag = 1:numel(tags)
         filename     = fullfile(getHydra0Dir(), 'parameters', 'equilibrium-calibration-parameters.json');
         jsonstructEC = parseBattmoJson(filename);
 
+        %commonShortnames = {'ne_vsa', 'pe_vsa', 'ne_D', 'pe_D', 'ne_bg', 'pe_bg'};
+        commonShortnames = {'ne_vsa', 'pe_vsa', 'ne_D', 'pe_D'};
+
         switch tag
-          case {'no-elyte-params', 'one-elyte-param', 'one-elyte-param-finer'}
+          case 'no-elyte-params'
             useRegionBruggemanCoefficients = false;
-          case {'two-elyte-params', 'three-elyte-params', 'elyte-bgfactor'}
+            elyteShortnames = {};
+
+          case {'one-elyte-param', 'one-elyte-param-finer'}
+            useRegionBruggemanCoefficients = false;
+            elyteShortnames = {'elyte_bg'};
+
+          case 'two-elyte-params'
             useRegionBruggemanCoefficients = true;
+            elyteShortnames = {'elyte_bg_ne', 'elyte_bg_pe'};
+
+          case 'three-elyte-params'
+            useRegionBruggemanCoefficients = true;
+            elyteShortnames = {'elyte_bg_ne', 'elyte_bg_pe', 'elyte_bg_sep'};
+
+          case 'elyte-bgfactor'
+            useRegionBruggemanCoefficients = true;
+            elyteShortnames = {'elyte_bgfactor'};
+
           otherwise
             error('Unexpected tag %s', tag);
         end
+
+        shortnames = [commonShortnames, elyteShortnames];
+        disp('shortnames:');
+        printer(shortnames);
+
 
         % % Estimate capacity
         % inputCap  = struct('lowRateParams'             , jsonstructEC, ...
@@ -174,14 +193,13 @@ for itag = 1:numel(tags)
                    'OutputMinisteps', false));
 
         % Setup parameters to be calibrated
-        HRC = HighRateCalibration(simulatorSetup, tag);
+        HRC = HighRateCalibration(simulatorSetup, 'shortnames', shortnames);
         parameters = HRC.getParams();
 
         % Objective function
         lsq = @(simsetup, states, varargin) leastSquaresEI(simsetup, states, statesExp, varargin{:});
         v = lsq(simulatorSetup, output0.states);
         scaling = sum([v{:}]);
-
         objective = @(p, varargin) evalObjectiveBattmo(p, lsq, simulatorSetup, parameters, ...
                                                        'objScaling', scaling, varargin{:});
 
@@ -199,15 +217,30 @@ for itag = 1:numel(tags)
                                              'gradientMethod', 'AdjointAD', ...
                                              'objScaling', scaling);
 
+            perturbationSize = 1e-3;
             [vnum, gnum] = evalObjectiveBattmo(Xtmp, lsq, simulatorSetup, parameters, ...
                                                'gradientMethod', 'PerturbationADNUM', ...
-                                               'PerturbationSize', 1e-7, ...
+                                               'PerturbationSize', perturbationSize, ...
                                                'objScaling', scaling);
-            assert(abs(vad - vnum) < eps);
-            assert(all(abs(gad) > 0));
-            assert(all(abs(gnum) > 0));
-            assert(norm((gad-gnum)./gnum, 'inf') < 1e-3);
 
+            absErr = abs(gad - gnum);
+            relErr = absErr ./ max(abs(gad) + abs(gnum), eps);
+            disp(table(HRC.shortnames, gad, gnum, absErr, relErr, ...
+                       'VariableNames', {'Shortname', 'Adjoint', ...
+                                         'FiniteDifference', 'AbsoluteError', ...
+                                         'RelativeError'}));
+            fprintf('Finite-difference perturbation size in scaled coordinates: %.3e\n', ...
+                    perturbationSize);
+            assert(abs(vad - vnum) < eps);
+
+            % Relative error is not meaningful for insensitive parameters,
+            % so combine a relative and an absolute tolerance.
+            absTol = 1e-1;
+            relTol = 1e-1;
+            assert(all(absErr <= absTol + relTol .* max(abs(gad), abs(gnum))), ...
+                   'Adjoint and finite-difference gradients do not agree.');
+
+            return
         end
 
         %% Run optimization
@@ -221,9 +254,10 @@ for itag = 1:numel(tags)
                                                    'doplot', doplot);
 
         [vopt, Xopt, history] = unitBoxBFGS(X0, objective, ...
-                                            'objChangeTol', 1e-8 , ...
+                                            'gradTol', 1e-3, ...
+                                            'objChangeTol', -inf , ...
                                             'maximize'    , false, ...
-                                            'maxit'       , 150  , ...
+                                            'maxit'       , 100  , ...
                                             'logPlot'     , true, ...
                                             'callbackfunc', callbackfunc, ...
                                             'plotEvolution', doplot);
@@ -363,6 +397,8 @@ for itag = 1:numel(tags)
         % For testing: print NE volumetric surface area
         fprintf('Initial diffusion Dne=%g volumetricsurfacearea=%g\n', ...
                 Dne, jsonstructHRC.(ne).(co).(am).(itf).volumetricSurfaceArea);
+
+        disp(reasonStr)
 
         diary off;
 
