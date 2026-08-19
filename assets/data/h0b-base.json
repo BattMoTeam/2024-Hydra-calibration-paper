@@ -1,0 +1,168 @@
+{
+  "include_current_collectors": true,
+  "initT": 298.15,
+  "use_thermal": false,
+  "SOC": 1.0,
+  "Control": {
+    "DRate": 1,
+    "controlPolicy": "CCDischarge",
+    "lowerCutoffVoltage": 3.5,
+    "rampupTime": 0.1,
+    "useCVswitch": true
+  },
+  "Electrolyte": {
+    "bruggemanCoefficient": 1.5,
+    "compnames": [
+      "Li",
+      "PF6"
+    ],
+    "density": 1200,
+    "diffusionCoefficient": {
+      "argumentList": [
+        "concentration",
+        "temperature"
+      ],
+      "functionName": "computeDiffusionCoefficient_Nyman2008",
+      "functionFormat": "named function"
+    },
+    "ionicConductivity": {
+      "argumentList": [
+        "concentration",
+        "temperature"
+      ],
+      "functionName": "computeElectrolyteConductivity_Nyman2008",
+      "name": "conductivity",
+      "functionFormat": "named function"
+    },
+    "name": "orgLiPF6",
+    "species": {
+      "chargeNumber": 1,
+      "nominalConcentration": 1200,
+      "transferenceNumber": 0.226
+    }
+  },
+  "NegativeElectrode": {
+    "Coating": {
+      "ActiveMaterial": {
+        "Interface": {
+          "chargeTransferCoefficient": 0.5,
+          "exchangeCurrentDensity": {
+            "argumentList": [
+              "soc"
+            ],
+            "functionName": "computeJ0anodeH0b",
+            "functionFormat": "named function"
+          },
+          "guestStoichiometry0": 0,
+          "guestStoichiometry100": 1,
+          "numberOfElectronsTransferred": 1,
+          "openCircuitPotential": {
+            "argumentList": [
+	      "stoichiometry"
+            ],
+            "functionName": "computeOCPanodeH0b",
+            "functionFormat": "named function"
+          },
+          "saturationConcentration": 31360,
+          "volumetricSurfaceArea": 1540000.0
+        },
+        "SolidDiffusion": {
+          "activationEnergyOfDiffusion": 13820.0,
+          "referenceDiffusionCoefficient": 1e-12,
+          "particleRadius": 1.63e-05,
+          "N": 10
+        },
+        "density": 2250,
+        "diffusionModelType": "full",
+        "massFraction": 0.96
+      },
+      "N": 10,
+      "thickness": 5.65e-05,
+      "bruggemanCoefficient": 3.46,
+      "electronicConductivity": 62,
+      "volumeFraction": 0.61,
+      "Binder": {
+        "density": 1320,
+        "massFraction": 0.03,
+        "electronicConductivity": 62
+      },
+      "ConductingAdditive": {
+        "density": 1800,
+        "massFraction": 0.01,
+        "electronicConductivity": 62
+      }
+    },
+    "CurrentCollector": {
+      "comment": "copper data from BattMo",
+      "electronicConductivity": 59600000.0,
+      "thermalConductivity": 398,
+      "specificHeatCapacity": 385,
+      "density": 8960,
+      "thickness": 1e-05,
+      "N": 10
+    }
+  },
+  "PositiveElectrode": {
+    "Coating": {
+      "ActiveMaterial": {
+        "Interface": {
+          "activationEnergyOfReaction": 40460.0,
+          "chargeTransferCoefficient": 0.5,
+          "guestStoichiometry0": 1.0,
+          "guestStoichiometry100": 0.14,
+          "numberOfElectronsTransferred": 1,
+          "openCircuitPotential": {
+            "argumentList": [
+              "stoichiometry"
+            ],
+            "functionName": "computeOCPcathodeH0b",
+            "functionFormat": "named function"
+          },
+          "reactionRateConstant": 2.33e-11,
+          "saturationConcentration": 23761,
+          "volumetricSurfaceArea": 2520000.0
+        },
+        "SolidDiffusion": {
+          "activationEnergyOfDiffusion": 5630.0,
+          "referenceDiffusionCoefficient": 1e-12,
+          "particleRadius": 8.94e-06,
+          "N": 10
+        },
+        "density": 4200,
+        "diffusionModelType": "full",
+        "massFraction": 0.92
+      },
+      "N": 10,
+      "thickness": 7.65e-05,
+      "bruggemanCoefficient": 3,
+      "electronicConductivity": 18,
+      "volumeFraction": 0.66,
+      "Binder": {
+        "density": 1800,
+        "massFraction": 0.04,
+        "electronicConductivity": 18
+      },
+      "ConductingAdditive": {
+        "density": 1800,
+        "massFraction": 0.04,
+        "electronicConductivity": 18
+      }
+    },
+    "CurrentCollector": {
+      "comment": "aluminium data from BattMo",
+      "electronicConductivity": 35500000.0,
+      "thermalConductivity": 170,
+      "specificHeatCapacity": 875.0,
+      "density": 2700,
+      "thickness": 2e-05,
+      "N": 10
+    }
+  },
+  "Separator": {
+    "bruggemanCoefficient": 4.2,
+    "density": 946,
+    "porosity": 0.48,
+    "thickness": 2.5e-05,
+    "N": 10
+  }
+}

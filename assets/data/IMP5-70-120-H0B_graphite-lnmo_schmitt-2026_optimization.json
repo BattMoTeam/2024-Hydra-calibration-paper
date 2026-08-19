@@ -1,0 +1,434 @@
+{
+  "schema_version": "1.0.0",
+  "specification": {
+    "id": "https://w3id.org/battinfo/cell-type/7mp5-7012-0h0b-sc26",
+    "manufacturer": "Unknown",
+    "model": "IMP5-70-120-H0B",
+    "format": "pouch",
+    "chemistry": "Li-ion",
+    "positive_electrode_basis": "LNMO",
+    "negative_electrode_basis": "graphite",
+    "construction": {
+      "assembly_type": "stacked",
+      "layering": "single_layer",
+      "layer_count": 1,
+      "assembly_sequence": [
+        "positive electrode",
+        "separator",
+        "negative electrode"
+      ]
+    },
+    "property": {
+      "initial_temperature": {
+        "unit": "K",
+        "value": 298.15
+      },
+      "lower_cutoff_voltage": {
+        "unit": "V",
+        "value": 3.5
+      }
+    },
+    "positive_electrode": {
+      "coating": {
+        "component": {
+          "active_material": [
+            {
+              "name": "LNMO",
+              "property": {
+                "mass_fraction": {
+                  "unit": "1",
+                  "value": 0.92
+                },
+                "density": {
+                  "unit": "kg/m^3",
+                  "value": 4200
+                },
+                "particle_radius": {
+                  "unit": "m",
+                  "value": 8.94e-06
+                },
+                "maximum_lithium_concentration": {
+                  "unit": "mol/m^3",
+                  "value": 23761
+                },
+                "lithium_diffusivity": {
+                  "unit": "m^2/s",
+                  "value": 2.821904192882926e-14
+                },
+                "activation_energy_of_lithium_diffusivity": {
+                  "unit": "J/mol",
+                  "value": 5630.0
+                },
+                "volumetric_surface_area": {
+                  "unit": "1/m",
+                  "value": 100798.07414714804
+                },
+                "lithium_stoichiometric_coefficient_at_soc_0": {
+                  "unit": "1",
+                  "value": 0.8842480441541367
+                },
+                "lithium_stoichiometric_coefficient_at_soc_100": {
+                  "unit": "1",
+                  "value": 0.12824837916832565
+                },
+                "open_circuit_voltage_function": {
+                  "unit": "V",
+                  "value_text": "computeOCPcathodeH0b"
+                },
+                "reaction_rate_constant": {
+                  "unit": "mol/m^2/s",
+                  "value": 2.33e-11
+                },
+                "activation_energy_of_reaction": {
+                  "unit": "J/mol",
+                  "value": 40460.0
+                },
+                "charge_transfer_coefficient": {
+                  "unit": "1",
+                  "value": 0.5
+                },
+                "number_of_electrons_transferred": {
+                  "unit": "1",
+                  "value": 1
+                }
+              },
+              "comment": "Positive-electrode active material block for the calibrated LNMO parameterization."
+            }
+          ],
+          "binder": [
+            {
+              "name": "PVDF",
+              "property": {
+                "mass_fraction": {
+                  "unit": "1",
+                  "value": 0.04
+                },
+                "density": {
+                  "unit": "kg/m^3",
+                  "value": 1800
+                },
+                "electronic_conductivity": {
+                  "unit": "S/m",
+                  "value": 18
+                }
+              }
+            }
+          ],
+          "additive": [
+            {
+              "name": "Carbon black",
+              "property": {
+                "mass_fraction": {
+                  "unit": "1",
+                  "value": 0.04
+                },
+                "density": {
+                  "unit": "kg/m^3",
+                  "value": 1800
+                },
+                "electronic_conductivity": {
+                  "unit": "S/m",
+                  "value": 18
+                }
+              }
+            }
+          ]
+        },
+        "property": {
+          "thickness": {
+            "unit": "m",
+            "value": 7.65e-05
+          },
+          "porosity": {
+            "unit": "1",
+            "value": 0.32664216687014735
+          },
+          "volume_fraction": {
+            "unit": "1",
+            "value": 0.6733578331298526
+          },
+          "electronic_conductivity": {
+            "unit": "S/m",
+            "value": 18
+          },
+          "bruggeman_coefficient": {
+            "unit": "1",
+            "value": 3.1396771601532647
+          },
+          "electrolyte_bruggeman_coefficient": {
+            "unit": "1",
+            "value": 1.976195967243782
+          }
+        },
+        "comment": "Positive-electrode coating properties after equilibrium and high-rate calibration."
+      },
+      "current_collector": {
+        "name": "Al foil",
+        "property": {
+          "thickness": {
+            "unit": "m",
+            "value": 2e-05
+          },
+          "electronic_conductivity": {
+            "unit": "S/m",
+            "value": 35500000.0
+          },
+          "thermal_conductivity": {
+            "unit": "W/m/K",
+            "value": 170
+          },
+          "specific_heat_capacity": {
+            "unit": "J/kg/K",
+            "value": 875.0
+          },
+          "density": {
+            "unit": "kg/m^3",
+            "value": 2700
+          }
+        },
+        "comment": "aluminium data from BattMo"
+      }
+    },
+    "negative_electrode": {
+      "coating": {
+        "component": {
+          "active_material": [
+            {
+              "name": "Graphite",
+              "property": {
+                "mass_fraction": {
+                  "unit": "1",
+                  "value": 0.96
+                },
+                "density": {
+                  "unit": "kg/m^3",
+                  "value": 2250
+                },
+                "particle_radius": {
+                  "unit": "m",
+                  "value": 1.63e-05
+                },
+                "maximum_lithium_concentration": {
+                  "unit": "mol/m^3",
+                  "value": 31360
+                },
+                "lithium_diffusivity": {
+                  "unit": "m^2/s",
+                  "value": 1.2414106819005191e-13
+                },
+                "activation_energy_of_lithium_diffusivity": {
+                  "unit": "J/mol",
+                  "value": 13820.0
+                },
+                "volumetric_surface_area": {
+                  "unit": "1/m",
+                  "value": 4895610.74530884
+                },
+                "lithium_stoichiometric_coefficient_at_soc_0": {
+                  "unit": "1",
+                  "value": 0
+                },
+                "lithium_stoichiometric_coefficient_at_soc_100": {
+                  "unit": "1",
+                  "value": 0.7858635147691948
+                },
+                "open_circuit_voltage_function": {
+                  "unit": "V",
+                  "value_text": "computeOCPanodeH0b"
+                },
+                "exchange_current_density_function": {
+                  "unit": "A/m^2",
+                  "value_text": "computeJ0anodeH0b"
+                },
+                "charge_transfer_coefficient": {
+                  "unit": "1",
+                  "value": 0.5
+                },
+                "number_of_electrons_transferred": {
+                  "unit": "1",
+                  "value": 1
+                }
+              },
+              "comment": "Negative-electrode active material block for the calibrated graphite parameterization."
+            }
+          ],
+          "binder": [
+            {
+              "name": "Binder",
+              "property": {
+                "mass_fraction": {
+                  "unit": "1",
+                  "value": 0.03
+                },
+                "density": {
+                  "unit": "kg/m^3",
+                  "value": 1320
+                },
+                "electronic_conductivity": {
+                  "unit": "S/m",
+                  "value": 62
+                }
+              }
+            }
+          ],
+          "additive": [
+            {
+              "name": "Carbon black",
+              "property": {
+                "mass_fraction": {
+                  "unit": "1",
+                  "value": 0.01
+                },
+                "density": {
+                  "unit": "kg/m^3",
+                  "value": 1800
+                },
+                "electronic_conductivity": {
+                  "unit": "S/m",
+                  "value": 62
+                }
+              }
+            }
+          ]
+        },
+        "property": {
+          "thickness": {
+            "unit": "m",
+            "value": 5.65e-05
+          },
+          "porosity": {
+            "unit": "1",
+            "value": 0.40068390087175265
+          },
+          "volume_fraction": {
+            "unit": "1",
+            "value": 0.5993160991282473
+          },
+          "electronic_conductivity": {
+            "unit": "S/m",
+            "value": 62
+          },
+          "bruggeman_coefficient": {
+            "unit": "1",
+            "value": 2.146131603321206
+          },
+          "electrolyte_bruggeman_coefficient": {
+            "unit": "1",
+            "value": 1.6972738713894258
+          }
+        },
+        "comment": "Negative-electrode coating properties after equilibrium and high-rate calibration."
+      },
+      "current_collector": {
+        "name": "Cu foil",
+        "property": {
+          "thickness": {
+            "unit": "m",
+            "value": 1e-05
+          },
+          "electronic_conductivity": {
+            "unit": "S/m",
+            "value": 59600000.0
+          },
+          "thermal_conductivity": {
+            "unit": "W/m/K",
+            "value": 398
+          },
+          "specific_heat_capacity": {
+            "unit": "J/kg/K",
+            "value": 385
+          },
+          "density": {
+            "unit": "kg/m^3",
+            "value": 8960
+          }
+        },
+        "comment": "copper data from BattMo"
+      }
+    },
+    "electrolyte": {
+      "family": "organic",
+      "salt": {
+        "name": "LiPF6",
+        "cation": "Li+",
+        "anion": "PF6-",
+        "property": {
+          "concentration": {
+            "unit": "mol/m^3",
+            "value": 1200
+          },
+          "charge_number": {
+            "unit": "1",
+            "value": 1
+          }
+        }
+      },
+      "property": {
+        "density": {
+          "unit": "kg/m^3",
+          "value": 1200
+        },
+        "lithium_transference_number": {
+          "unit": "1",
+          "value": 0.226
+        },
+        "lithium_diffusion_coefficient_function": {
+          "unit": "m^2/s",
+          "value_text": "computeDiffusionCoefficient_Nyman2008"
+        },
+        "electrolyte_conductivity_function": {
+          "unit": "S/m",
+          "value_text": "computeElectrolyteConductivity_Nyman2008"
+        },
+        "bulk_bruggeman_coefficient": {
+          "unit": "1",
+          "value": 1.5
+        }
+      },
+      "comment": "Electrolyte block captures the bulk electrolyte parameterization and the conducting salt metadata."
+    },
+    "separator": {
+      "material": "Unspecified polyolefin separator",
+      "property": {
+        "thickness": {
+          "unit": "m",
+          "value": 2.5e-05
+        },
+        "porosity": {
+          "unit": "1",
+          "value": 0.48
+        },
+        "density": {
+          "unit": "kg/m^3",
+          "value": 946
+        },
+        "bruggeman_coefficient": {
+          "unit": "1",
+          "value": 4.2
+        },
+        "electrolyte_bruggeman_coefficient": {
+          "unit": "1",
+          "value": 1.6267795515332075
+        }
+      }
+    },
+    "comment": [
+      "BattINFO-style cell descriptor derived from the published BattMo parameter files.",
+      "Quantities are attached to the battery cell, its components, and material constituents rather than flattened into a single property list."
+    ]
+  },
+  "provenance": {
+    "source_type": "derived",
+    "source_name": "Graphite/LNMO BattMo publication workflow",
+    "source_file": "scripts/generate_optimization_linked_data.py",
+    "source_url": "https://doi.org/10.5281/zenodo.18256663",
+    "retrieved_at": 1774609139,
+    "workflow_version": "battinfo-structure-refactor",
+    "comment": "Derived from parameters/h0b-base.json, parameters/equilibrium-calibration-parameters.json, and parameters/high-rate-calibration-parameters.json.",
+    "citation": "https://doi.org/10.5281/zenodo.18256663"
+  },
+  "comment": [
+    "This JSON file is the canonical BattINFO-style descriptor for the calibrated IMP5-70-120-H0B cell.",
+    "The JSON-LD companion preserves the legacy BattMo model-ontology links through dual typing on the corresponding measured-property nodes."
+  ]
+}

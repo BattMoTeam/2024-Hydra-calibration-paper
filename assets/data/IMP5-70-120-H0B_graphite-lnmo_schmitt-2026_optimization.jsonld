@@ -1,0 +1,1055 @@
+{
+  "@context": [
+    "https://w3id.org/emmo/domain/battery/context",
+    {
+      "schema": "https://schema.org",
+      "emmo": "https://w3id.org/emmo#",
+      "unit": "https://qudt.org/vocab/unit/",
+      "rdfs": "https://www.w3.org/TR/rdf-schema/#ch_comment",
+      "model": "https://w3id.org/emmo/domain/battery-model-lithium-ion#"
+    }
+  ],
+  "@type": [
+    "PouchCell",
+    "BatteryCell"
+  ],
+  "schema:version": "1.0.0",
+  "schema:productID": "IMP5-70-120-H0B",
+  "schema:manufacturer": {
+    "@type": "schema:Organization",
+    "schema:name": "Unknown"
+  },
+  "rdfs:comment": [
+    "This JSON file is the canonical BattINFO-style descriptor for the calibrated IMP5-70-120-H0B cell.",
+    "The JSON-LD companion preserves the legacy BattMo model-ontology links through dual typing on the corresponding measured-property nodes.",
+    "BattINFO-style cell descriptor derived from the published BattMo parameter files.",
+    "Quantities are attached to the battery cell, its components, and material constituents rather than flattened into a single property list.",
+    "Cell assembly sequence: positive electrode, separator, negative electrode"
+  ],
+  "hasPositiveElectrode": {
+    "@type": "Electrode",
+    "hasCurrentCollector": {
+      "@type": "CurrentCollector",
+      "rdfs:comment": "aluminium data from BattMo",
+      "hasMeasuredProperty": [
+        {
+          "@type": [
+            "Thickness",
+            "ConventionalProperty"
+          ],
+          "rdfs:label": "Thickness",
+          "hasNumericalPart": {
+            "@type": "emmo:RealData",
+            "hasNumberValue": 2e-05
+          },
+          "hasMeasurementUnit": "emmo:Metre"
+        },
+        {
+          "@type": [
+            "ElectronicConductivity",
+            "ConventionalProperty"
+          ],
+          "rdfs:label": "ElectronicConductivity",
+          "hasNumericalPart": {
+            "@type": "emmo:RealData",
+            "hasNumberValue": 35500000.0
+          },
+          "hasMeasurementUnit": "emmo:SiemensPerMetre"
+        },
+        {
+          "@type": [
+            "ThermalConductivity",
+            "ConventionalProperty"
+          ],
+          "rdfs:label": "ThermalConductivity",
+          "hasNumericalPart": {
+            "@type": "emmo:RealData",
+            "hasNumberValue": 170
+          },
+          "schema:unitText": "W/m/K"
+        },
+        {
+          "@type": [
+            "SpecificHeatCapacity",
+            "ConventionalProperty"
+          ],
+          "rdfs:label": "SpecificHeatCapacity",
+          "hasNumericalPart": {
+            "@type": "emmo:RealData",
+            "hasNumberValue": 875.0
+          },
+          "schema:unitText": "J/kg/K"
+        },
+        {
+          "@type": [
+            "Density",
+            "ConventionalProperty"
+          ],
+          "rdfs:label": "Density",
+          "hasNumericalPart": {
+            "@type": "emmo:RealData",
+            "hasNumberValue": 2700
+          },
+          "schema:unitText": "kg/m^3"
+        }
+      ]
+    },
+    "hasCoating": {
+      "@type": "ElectrodeCoating",
+      "rdfs:comment": "Positive-electrode coating properties after equilibrium and high-rate calibration.",
+      "hasActiveMaterial": {
+        "@type": "schema:Thing",
+        "schema:name": "LNMO",
+        "rdfs:comment": "Positive-electrode active material block for the calibrated LNMO parameterization.",
+        "hasMeasuredProperty": [
+          {
+            "@type": [
+              "MassFraction",
+              "ConventionalProperty"
+            ],
+            "rdfs:label": "MassFraction",
+            "hasNumericalPart": {
+              "@type": "emmo:RealData",
+              "hasNumberValue": 0.92
+            },
+            "hasMeasurementUnit": "emmo:UnitOne"
+          },
+          {
+            "@type": [
+              "Density",
+              "ConventionalProperty"
+            ],
+            "rdfs:label": "Density",
+            "hasNumericalPart": {
+              "@type": "emmo:RealData",
+              "hasNumberValue": 4200
+            },
+            "schema:unitText": "kg/m^3"
+          },
+          {
+            "@type": [
+              "ParticleRadius",
+              "ConventionalProperty",
+              "model:modellib_58400817_3282_46e5_942e_3a1538631403"
+            ],
+            "rdfs:label": "PositiveElectrodeActiveMaterialParticleRadius",
+            "hasNumericalPart": {
+              "@type": "emmo:RealData",
+              "hasNumberValue": 8.94e-06
+            },
+            "hasMeasurementUnit": "emmo:Metre"
+          },
+          {
+            "@type": [
+              "MaximumConcentration",
+              "ConventionalProperty",
+              "model:modellib_c69a9d55_823f_4113_a305_ebc89dde7de3"
+            ],
+            "rdfs:label": "PositiveElectrodeMaximumLithiumConcentration",
+            "hasNumericalPart": {
+              "@type": "emmo:RealData",
+              "hasNumberValue": 23761
+            },
+            "hasMeasurementUnit": "emmo:MolePerCubicMetre"
+          },
+          {
+            "@type": [
+              "Diffusivity",
+              "ConventionalProperty",
+              "model:modellib_e59188bb_ce66_49f6_84aa_ecb98e76941e"
+            ],
+            "rdfs:label": "LithiumDiffusivityInPositiveElectrode",
+            "hasNumericalPart": {
+              "@type": "emmo:RealData",
+              "hasNumberValue": 2.821904192882926e-14
+            },
+            "hasMeasurementUnit": "emmo:SquareMetrePerSecond"
+          },
+          {
+            "@type": [
+              "ActivationEnergy",
+              "ConventionalProperty",
+              "model:modellib_4d69edda_d2fa_40b0_9c1e_52e08debf578"
+            ],
+            "rdfs:label": "ActivationEnergyOfLithiumDiffusivityInPositiveElectrode",
+            "hasNumericalPart": {
+              "@type": "emmo:RealData",
+              "hasNumberValue": 5630.0
+            },
+            "hasMeasurementUnit": "emmo:JoulePerMole"
+          },
+          {
+            "@type": [
+              "VolumetricSurfaceArea",
+              "ConventionalProperty",
+              "model:modellib_0a1e73c5_e91b_4365_88d4_1e1f476bf776"
+            ],
+            "rdfs:label": "PositiveElectrodeActiveMaterialVolumetricSurfaceArea",
+            "hasNumericalPart": {
+              "@type": "emmo:RealData",
+              "hasNumberValue": 100798.07414714804
+            },
+            "hasMeasurementUnit": "emmo:ReciprocalMetre"
+          },
+          {
+            "@type": [
+              "StoichiometricCoefficientAtSOC0",
+              "StoichiometricCoefficient",
+              "ConventionalProperty",
+              "model:modellib_80920875_62ac_4e29_b970_ec4316e76aa5"
+            ],
+            "rdfs:label": "PositiveElectrodeLithiumStoichiometricCoefficientAtSOC0",
+            "hasNumericalPart": {
+              "@type": "emmo:RealData",
+              "hasNumberValue": 0.8842480441541367
+            },
+            "hasMeasurementUnit": "emmo:UnitOne"
+          },
+          {
+            "@type": [
+              "StoichiometricCoefficientAtSOC100",
+              "StoichiometricCoefficient",
+              "ConventionalProperty",
+              "model:modellib_99041897_5c08_40ed_9118_3e77e9b0e191"
+            ],
+            "rdfs:label": "PositiveElectrodeLithiumStoichiometricCoefficientAtSOC100",
+            "hasNumericalPart": {
+              "@type": "emmo:RealData",
+              "hasNumberValue": 0.12824837916832565
+            },
+            "hasMeasurementUnit": "emmo:UnitOne"
+          },
+          {
+            "@type": [
+              "OpenCircuitVoltage",
+              "ConventionalProperty",
+              "model:modellib_52ab4fdd_f945_4541_9ce6_cd6fd3a05861"
+            ],
+            "rdfs:label": "PositiveElectrodeActiveMaterialOpenCircuitVoltage",
+            "hasPart": {
+              "@type": "String",
+              "hasStringValue": "computeOCPcathodeH0b"
+            },
+            "hasMeasurementUnit": "emmo:Volt"
+          },
+          {
+            "@type": [
+              "ReactionRateConstant",
+              "ConventionalProperty",
+              "model:modellib_404126e0_cb1b_44e4_98dc_2474185767a1"
+            ],
+            "rdfs:label": "PositiveElectrodeReactionRateConstant",
+            "hasNumericalPart": {
+              "@type": "emmo:RealData",
+              "hasNumberValue": 2.33e-11
+            },
+            "schema:unitText": "mol/m^2/s"
+          },
+          {
+            "@type": [
+              "ActivationEnergy",
+              "ConventionalProperty",
+              "model:modellib_56b9cd1f_5397_4385_9292_30d93d9e7a05"
+            ],
+            "rdfs:label": "PositiveElectrodeActivationEnergyOfReaction",
+            "hasNumericalPart": {
+              "@type": "emmo:RealData",
+              "hasNumberValue": 40460.0
+            },
+            "hasMeasurementUnit": "emmo:JoulePerMole"
+          },
+          {
+            "@type": [
+              "ChargeTransferCoefficient",
+              "ConventionalProperty"
+            ],
+            "rdfs:label": "ChargeTransferCoefficient",
+            "hasNumericalPart": {
+              "@type": "emmo:RealData",
+              "hasNumberValue": 0.5
+            },
+            "hasMeasurementUnit": "emmo:UnitOne"
+          },
+          {
+            "@type": [
+              "NumberOfElectronsTransferred",
+              "ConventionalProperty"
+            ],
+            "rdfs:label": "NumberOfElectronsTransferred",
+            "hasNumericalPart": {
+              "@type": "emmo:RealData",
+              "hasNumberValue": 1
+            },
+            "hasMeasurementUnit": "emmo:UnitOne"
+          }
+        ]
+      },
+      "hasBinder": {
+        "@type": [
+          "Binder",
+          "PolyvinylideneFluoride"
+        ],
+        "hasMeasuredProperty": [
+          {
+            "@type": [
+              "MassFraction",
+              "ConventionalProperty"
+            ],
+            "rdfs:label": "MassFraction",
+            "hasNumericalPart": {
+              "@type": "emmo:RealData",
+              "hasNumberValue": 0.04
+            },
+            "hasMeasurementUnit": "emmo:UnitOne"
+          },
+          {
+            "@type": [
+              "Density",
+              "ConventionalProperty"
+            ],
+            "rdfs:label": "Density",
+            "hasNumericalPart": {
+              "@type": "emmo:RealData",
+              "hasNumberValue": 1800
+            },
+            "schema:unitText": "kg/m^3"
+          },
+          {
+            "@type": [
+              "ElectronicConductivity",
+              "ConventionalProperty"
+            ],
+            "rdfs:label": "ElectronicConductivity",
+            "hasNumericalPart": {
+              "@type": "emmo:RealData",
+              "hasNumberValue": 18
+            },
+            "hasMeasurementUnit": "emmo:SiemensPerMetre"
+          }
+        ]
+      },
+      "hasConductiveAdditive": {
+        "@type": [
+          "ConductiveAdditive",
+          "CarbonBlack"
+        ],
+        "hasMeasuredProperty": [
+          {
+            "@type": [
+              "MassFraction",
+              "ConventionalProperty"
+            ],
+            "rdfs:label": "MassFraction",
+            "hasNumericalPart": {
+              "@type": "emmo:RealData",
+              "hasNumberValue": 0.04
+            },
+            "hasMeasurementUnit": "emmo:UnitOne"
+          },
+          {
+            "@type": [
+              "Density",
+              "ConventionalProperty"
+            ],
+            "rdfs:label": "Density",
+            "hasNumericalPart": {
+              "@type": "emmo:RealData",
+              "hasNumberValue": 1800
+            },
+            "schema:unitText": "kg/m^3"
+          },
+          {
+            "@type": [
+              "ElectronicConductivity",
+              "ConventionalProperty"
+            ],
+            "rdfs:label": "ElectronicConductivity",
+            "hasNumericalPart": {
+              "@type": "emmo:RealData",
+              "hasNumberValue": 18
+            },
+            "hasMeasurementUnit": "emmo:SiemensPerMetre"
+          }
+        ]
+      },
+      "hasMeasuredProperty": [
+        {
+          "@type": [
+            "CalenderedCoatingThickness",
+            "CoatingThickness",
+            "Thickness",
+            "ConventionalProperty",
+            "model:modellib_62f5beeb_6d1e_442a_8048_3ebe08882964"
+          ],
+          "rdfs:label": "PositiveElectrodeCoatingThickness",
+          "hasNumericalPart": {
+            "@type": "emmo:RealData",
+            "hasNumberValue": 7.65e-05
+          },
+          "hasMeasurementUnit": "emmo:Metre"
+        },
+        {
+          "@type": [
+            "Porosity",
+            "ConventionalProperty",
+            "model:modellib_7481c4c9_c247_4248_a045_a1077230acba"
+          ],
+          "rdfs:label": "PositiveElectrodeCoatingPorosity",
+          "hasNumericalPart": {
+            "@type": "emmo:RealData",
+            "hasNumberValue": 0.32664216687014735
+          },
+          "hasMeasurementUnit": "emmo:UnitOne"
+        },
+        {
+          "@type": [
+            "VolumeFraction",
+            "ConventionalProperty"
+          ],
+          "rdfs:label": "VolumeFraction",
+          "hasNumericalPart": {
+            "@type": "emmo:RealData",
+            "hasNumberValue": 0.6733578331298526
+          },
+          "hasMeasurementUnit": "emmo:UnitOne"
+        },
+        {
+          "@type": [
+            "ElectronicConductivity",
+            "ConventionalProperty",
+            "model:modellib_43f77743_1af6_4a0f_9cc6_285c2a450549"
+          ],
+          "rdfs:label": "PositiveElectrodeElectronicConductivity",
+          "hasNumericalPart": {
+            "@type": "emmo:RealData",
+            "hasNumberValue": 18
+          },
+          "hasMeasurementUnit": "emmo:SiemensPerMetre"
+        },
+        {
+          "@type": "ConventionalProperty",
+          "rdfs:label": "BruggemanCoefficient",
+          "hasNumericalPart": {
+            "@type": "emmo:RealData",
+            "hasNumberValue": 3.1396771601532647
+          },
+          "hasMeasurementUnit": "emmo:UnitOne"
+        },
+        {
+          "@type": "ConventionalProperty",
+          "rdfs:label": "ElectrolyteBruggemanCoefficient",
+          "hasNumericalPart": {
+            "@type": "emmo:RealData",
+            "hasNumberValue": 1.976195967243782
+          },
+          "hasMeasurementUnit": "emmo:UnitOne"
+        }
+      ]
+    }
+  },
+  "hasNegativeElectrode": {
+    "@type": "Electrode",
+    "hasCurrentCollector": {
+      "@type": "CurrentCollector",
+      "rdfs:comment": "copper data from BattMo",
+      "hasMeasuredProperty": [
+        {
+          "@type": [
+            "Thickness",
+            "ConventionalProperty"
+          ],
+          "rdfs:label": "Thickness",
+          "hasNumericalPart": {
+            "@type": "emmo:RealData",
+            "hasNumberValue": 1e-05
+          },
+          "hasMeasurementUnit": "emmo:Metre"
+        },
+        {
+          "@type": [
+            "ElectronicConductivity",
+            "ConventionalProperty"
+          ],
+          "rdfs:label": "ElectronicConductivity",
+          "hasNumericalPart": {
+            "@type": "emmo:RealData",
+            "hasNumberValue": 59600000.0
+          },
+          "hasMeasurementUnit": "emmo:SiemensPerMetre"
+        },
+        {
+          "@type": [
+            "ThermalConductivity",
+            "ConventionalProperty"
+          ],
+          "rdfs:label": "ThermalConductivity",
+          "hasNumericalPart": {
+            "@type": "emmo:RealData",
+            "hasNumberValue": 398
+          },
+          "schema:unitText": "W/m/K"
+        },
+        {
+          "@type": [
+            "SpecificHeatCapacity",
+            "ConventionalProperty"
+          ],
+          "rdfs:label": "SpecificHeatCapacity",
+          "hasNumericalPart": {
+            "@type": "emmo:RealData",
+            "hasNumberValue": 385
+          },
+          "schema:unitText": "J/kg/K"
+        },
+        {
+          "@type": [
+            "Density",
+            "ConventionalProperty"
+          ],
+          "rdfs:label": "Density",
+          "hasNumericalPart": {
+            "@type": "emmo:RealData",
+            "hasNumberValue": 8960
+          },
+          "schema:unitText": "kg/m^3"
+        }
+      ]
+    },
+    "hasCoating": {
+      "@type": "ElectrodeCoating",
+      "rdfs:comment": "Negative-electrode coating properties after equilibrium and high-rate calibration.",
+      "hasActiveMaterial": {
+        "@type": "Graphite",
+        "rdfs:comment": "Negative-electrode active material block for the calibrated graphite parameterization.",
+        "hasMeasuredProperty": [
+          {
+            "@type": [
+              "MassFraction",
+              "ConventionalProperty"
+            ],
+            "rdfs:label": "MassFraction",
+            "hasNumericalPart": {
+              "@type": "emmo:RealData",
+              "hasNumberValue": 0.96
+            },
+            "hasMeasurementUnit": "emmo:UnitOne"
+          },
+          {
+            "@type": [
+              "Density",
+              "ConventionalProperty"
+            ],
+            "rdfs:label": "Density",
+            "hasNumericalPart": {
+              "@type": "emmo:RealData",
+              "hasNumberValue": 2250
+            },
+            "schema:unitText": "kg/m^3"
+          },
+          {
+            "@type": [
+              "ParticleRadius",
+              "ConventionalProperty",
+              "model:modellib_bfe553c2_a63e_49b6_a209_0855dfc39724"
+            ],
+            "rdfs:label": "NegativeElectrodeActiveMaterialParticleRadius",
+            "hasNumericalPart": {
+              "@type": "emmo:RealData",
+              "hasNumberValue": 1.63e-05
+            },
+            "hasMeasurementUnit": "emmo:Metre"
+          },
+          {
+            "@type": [
+              "MaximumConcentration",
+              "ConventionalProperty",
+              "model:modellib_e808a26a_5812_49e9_894c_b793c7fe0c38"
+            ],
+            "rdfs:label": "NegativeElectrodeMaximumLithiumConcentration",
+            "hasNumericalPart": {
+              "@type": "emmo:RealData",
+              "hasNumberValue": 31360
+            },
+            "hasMeasurementUnit": "emmo:MolePerCubicMetre"
+          },
+          {
+            "@type": [
+              "Diffusivity",
+              "ConventionalProperty",
+              "model:modellib_50247e71_75fe_4986_959e_fd06c6be98db"
+            ],
+            "rdfs:label": "LithiumDiffusivityInNegativeElectrode",
+            "hasNumericalPart": {
+              "@type": "emmo:RealData",
+              "hasNumberValue": 1.2414106819005191e-13
+            },
+            "hasMeasurementUnit": "emmo:SquareMetrePerSecond"
+          },
+          {
+            "@type": [
+              "ActivationEnergy",
+              "ConventionalProperty",
+              "model:modellib_86af4487_33c1_4562_a00b_3a8252ffe378"
+            ],
+            "rdfs:label": "ActivationEnergyOfLithiumDiffusivityInNegativeElectrode",
+            "hasNumericalPart": {
+              "@type": "emmo:RealData",
+              "hasNumberValue": 13820.0
+            },
+            "hasMeasurementUnit": "emmo:JoulePerMole"
+          },
+          {
+            "@type": [
+              "VolumetricSurfaceArea",
+              "ConventionalProperty",
+              "model:modellib_c5f9b91e_a770_4e9b_837e_fa2a76019111"
+            ],
+            "rdfs:label": "NegativeElectrodeActiveMaterialVolumetricSurfaceArea",
+            "hasNumericalPart": {
+              "@type": "emmo:RealData",
+              "hasNumberValue": 4895610.74530884
+            },
+            "hasMeasurementUnit": "emmo:ReciprocalMetre"
+          },
+          {
+            "@type": [
+              "StoichiometricCoefficientAtSOC0",
+              "StoichiometricCoefficient",
+              "ConventionalProperty",
+              "model:modellib_21da0fe9_9fb6_4840_a12f_fbcc1ba84fb3"
+            ],
+            "rdfs:label": "NegativeElectrodeLithiumStoichiometricCoefficientAtSOC0",
+            "hasNumericalPart": {
+              "@type": "emmo:RealData",
+              "hasNumberValue": 0
+            },
+            "hasMeasurementUnit": "emmo:UnitOne"
+          },
+          {
+            "@type": [
+              "StoichiometricCoefficientAtSOC100",
+              "StoichiometricCoefficient",
+              "ConventionalProperty",
+              "model:modellib_8c336ae9_1818_4b08_a660_4bb83b28351f"
+            ],
+            "rdfs:label": "NegativeElectrodeLithiumStoichiometricCoefficientAtSOC100",
+            "hasNumericalPart": {
+              "@type": "emmo:RealData",
+              "hasNumberValue": 0.7858635147691948
+            },
+            "hasMeasurementUnit": "emmo:UnitOne"
+          },
+          {
+            "@type": [
+              "OpenCircuitVoltage",
+              "ConventionalProperty",
+              "model:modellib_0e2f4fe6_570a_4d13_81e9_de1d4f9987af"
+            ],
+            "rdfs:label": "NegativeElectrodeActiveMaterialOpenCircuitVoltage",
+            "hasPart": {
+              "@type": "String",
+              "hasStringValue": "computeOCPanodeH0b"
+            },
+            "hasMeasurementUnit": "emmo:Volt"
+          },
+          {
+            "@type": [
+              "ExchangeCurrentDensity",
+              "ConventionalProperty"
+            ],
+            "rdfs:label": "ExchangeCurrentDensityFunction",
+            "hasPart": {
+              "@type": "String",
+              "hasStringValue": "computeJ0anodeH0b"
+            },
+            "schema:unitText": "A/m^2"
+          },
+          {
+            "@type": [
+              "ChargeTransferCoefficient",
+              "ConventionalProperty"
+            ],
+            "rdfs:label": "ChargeTransferCoefficient",
+            "hasNumericalPart": {
+              "@type": "emmo:RealData",
+              "hasNumberValue": 0.5
+            },
+            "hasMeasurementUnit": "emmo:UnitOne"
+          },
+          {
+            "@type": [
+              "NumberOfElectronsTransferred",
+              "ConventionalProperty"
+            ],
+            "rdfs:label": "NumberOfElectronsTransferred",
+            "hasNumericalPart": {
+              "@type": "emmo:RealData",
+              "hasNumberValue": 1
+            },
+            "hasMeasurementUnit": "emmo:UnitOne"
+          }
+        ]
+      },
+      "hasBinder": {
+        "@type": "Binder",
+        "hasMeasuredProperty": [
+          {
+            "@type": [
+              "MassFraction",
+              "ConventionalProperty"
+            ],
+            "rdfs:label": "MassFraction",
+            "hasNumericalPart": {
+              "@type": "emmo:RealData",
+              "hasNumberValue": 0.03
+            },
+            "hasMeasurementUnit": "emmo:UnitOne"
+          },
+          {
+            "@type": [
+              "Density",
+              "ConventionalProperty"
+            ],
+            "rdfs:label": "Density",
+            "hasNumericalPart": {
+              "@type": "emmo:RealData",
+              "hasNumberValue": 1320
+            },
+            "schema:unitText": "kg/m^3"
+          },
+          {
+            "@type": [
+              "ElectronicConductivity",
+              "ConventionalProperty"
+            ],
+            "rdfs:label": "ElectronicConductivity",
+            "hasNumericalPart": {
+              "@type": "emmo:RealData",
+              "hasNumberValue": 62
+            },
+            "hasMeasurementUnit": "emmo:SiemensPerMetre"
+          }
+        ]
+      },
+      "hasConductiveAdditive": {
+        "@type": [
+          "ConductiveAdditive",
+          "CarbonBlack"
+        ],
+        "hasMeasuredProperty": [
+          {
+            "@type": [
+              "MassFraction",
+              "ConventionalProperty"
+            ],
+            "rdfs:label": "MassFraction",
+            "hasNumericalPart": {
+              "@type": "emmo:RealData",
+              "hasNumberValue": 0.01
+            },
+            "hasMeasurementUnit": "emmo:UnitOne"
+          },
+          {
+            "@type": [
+              "Density",
+              "ConventionalProperty"
+            ],
+            "rdfs:label": "Density",
+            "hasNumericalPart": {
+              "@type": "emmo:RealData",
+              "hasNumberValue": 1800
+            },
+            "schema:unitText": "kg/m^3"
+          },
+          {
+            "@type": [
+              "ElectronicConductivity",
+              "ConventionalProperty"
+            ],
+            "rdfs:label": "ElectronicConductivity",
+            "hasNumericalPart": {
+              "@type": "emmo:RealData",
+              "hasNumberValue": 62
+            },
+            "hasMeasurementUnit": "emmo:SiemensPerMetre"
+          }
+        ]
+      },
+      "hasMeasuredProperty": [
+        {
+          "@type": [
+            "CalenderedCoatingThickness",
+            "CoatingThickness",
+            "Thickness",
+            "ConventionalProperty",
+            "model:modellib_cdc91ec0_9fc5_4551_bbd9_6824c2920124"
+          ],
+          "rdfs:label": "NegativeElectrodeCoatingThickness",
+          "hasNumericalPart": {
+            "@type": "emmo:RealData",
+            "hasNumberValue": 5.65e-05
+          },
+          "hasMeasurementUnit": "emmo:Metre"
+        },
+        {
+          "@type": [
+            "Porosity",
+            "ConventionalProperty",
+            "model:modellib_5cb403c4_4f28_46cb_81c4_21c5c47ef14a"
+          ],
+          "rdfs:label": "NegativeElectrodeCoatingPorosity",
+          "hasNumericalPart": {
+            "@type": "emmo:RealData",
+            "hasNumberValue": 0.40068390087175265
+          },
+          "hasMeasurementUnit": "emmo:UnitOne"
+        },
+        {
+          "@type": [
+            "VolumeFraction",
+            "ConventionalProperty"
+          ],
+          "rdfs:label": "VolumeFraction",
+          "hasNumericalPart": {
+            "@type": "emmo:RealData",
+            "hasNumberValue": 0.5993160991282473
+          },
+          "hasMeasurementUnit": "emmo:UnitOne"
+        },
+        {
+          "@type": [
+            "ElectronicConductivity",
+            "ConventionalProperty",
+            "model:modellib_be3da3e2_58a9_4e58_adc2_7336d312717c"
+          ],
+          "rdfs:label": "NegativeElectrodeElectronicConductivity",
+          "hasNumericalPart": {
+            "@type": "emmo:RealData",
+            "hasNumberValue": 62
+          },
+          "hasMeasurementUnit": "emmo:SiemensPerMetre"
+        },
+        {
+          "@type": "ConventionalProperty",
+          "rdfs:label": "BruggemanCoefficient",
+          "hasNumericalPart": {
+            "@type": "emmo:RealData",
+            "hasNumberValue": 2.146131603321206
+          },
+          "hasMeasurementUnit": "emmo:UnitOne"
+        },
+        {
+          "@type": "ConventionalProperty",
+          "rdfs:label": "ElectrolyteBruggemanCoefficient",
+          "hasNumericalPart": {
+            "@type": "emmo:RealData",
+            "hasNumberValue": 1.6972738713894258
+          },
+          "hasMeasurementUnit": "emmo:UnitOne"
+        }
+      ]
+    }
+  },
+  "hasElectrolyte": {
+    "@type": "OrganicElectrolyte",
+    "rdfs:comment": "Electrolyte block captures the bulk electrolyte parameterization and the conducting salt metadata.",
+    "hasSolute": {
+      "@type": "Solute",
+      "hasConstituent": {
+        "@type": "LithiumHexafluorophosphate",
+        "hasMeasuredProperty": [
+          {
+            "@type": [
+              "AmountConcentration",
+              "ConventionalProperty",
+              "model:modellib_098f98dc_e015_4dbd_b358_a7ac3b3ecff3"
+            ],
+            "rdfs:label": "InitialLithiumConcentrationInElectrolyte",
+            "hasNumericalPart": {
+              "@type": "emmo:RealData",
+              "hasNumberValue": 1200
+            },
+            "hasMeasurementUnit": "emmo:MolePerCubicMetre"
+          },
+          {
+            "@type": "ConventionalProperty",
+            "rdfs:label": "ChargeNumber",
+            "hasNumericalPart": {
+              "@type": "emmo:RealData",
+              "hasNumberValue": 1
+            },
+            "hasMeasurementUnit": "emmo:UnitOne"
+          }
+        ]
+      }
+    },
+    "hasMeasuredProperty": [
+      {
+        "@type": [
+          "Density",
+          "ConventionalProperty"
+        ],
+        "rdfs:label": "Density",
+        "hasNumericalPart": {
+          "@type": "emmo:RealData",
+          "hasNumberValue": 1200
+        },
+        "schema:unitText": "kg/m^3"
+      },
+      {
+        "@type": [
+          "IonTransportNumber",
+          "ConventionalProperty",
+          "model:modellib_e3e78df2_d568_4ab7_8c0d_d3a2ee3ae282"
+        ],
+        "rdfs:label": "LithiumTransportNumber",
+        "hasNumericalPart": {
+          "@type": "emmo:RealData",
+          "hasNumberValue": 0.226
+        },
+        "hasMeasurementUnit": "emmo:UnitOne"
+      },
+      {
+        "@type": [
+          "Diffusivity",
+          "ConventionalProperty",
+          "model:modellib_4c274506_af5b_4ef1_8217_829ffd459f28"
+        ],
+        "rdfs:label": "LithiumDiffusivityInElectrolyte",
+        "hasPart": {
+          "@type": "String",
+          "hasStringValue": "computeDiffusionCoefficient_Nyman2008"
+        },
+        "hasMeasurementUnit": "emmo:SquareMetrePerSecond"
+      },
+      {
+        "@type": [
+          "IonicConductivity",
+          "ConventionalProperty",
+          "model:modellib_1923575e_05b0_4b8b_8d58_0b2f2ba41c3e"
+        ],
+        "rdfs:label": "ElectrolyteConductivity",
+        "hasPart": {
+          "@type": "String",
+          "hasStringValue": "computeElectrolyteConductivity_Nyman2008"
+        },
+        "hasMeasurementUnit": "emmo:SiemensPerMetre"
+      },
+      {
+        "@type": "ConventionalProperty",
+        "rdfs:label": "BulkBruggemanCoefficient",
+        "hasNumericalPart": {
+          "@type": "emmo:RealData",
+          "hasNumberValue": 1.5
+        },
+        "hasMeasurementUnit": "emmo:UnitOne"
+      }
+    ]
+  },
+  "hasSeparator": {
+    "@type": "Separator",
+    "schema:material": "Unspecified polyolefin separator",
+    "hasMeasuredProperty": [
+      {
+        "@type": [
+          "Thickness",
+          "ConventionalProperty",
+          "model:modellib_47288277_4aed_447e_b659_0c975d031406"
+        ],
+        "rdfs:label": "SeparatorThickness",
+        "hasNumericalPart": {
+          "@type": "emmo:RealData",
+          "hasNumberValue": 2.5e-05
+        },
+        "hasMeasurementUnit": "emmo:Metre"
+      },
+      {
+        "@type": [
+          "Porosity",
+          "ConventionalProperty",
+          "model:modellib_a4858e4d_dd3b_48ce_97ba_3eeb8571b633"
+        ],
+        "rdfs:label": "SeparatorPorosity",
+        "hasNumericalPart": {
+          "@type": "emmo:RealData",
+          "hasNumberValue": 0.48
+        },
+        "hasMeasurementUnit": "emmo:UnitOne"
+      },
+      {
+        "@type": [
+          "Density",
+          "ConventionalProperty"
+        ],
+        "rdfs:label": "Density",
+        "hasNumericalPart": {
+          "@type": "emmo:RealData",
+          "hasNumberValue": 946
+        },
+        "schema:unitText": "kg/m^3"
+      },
+      {
+        "@type": "ConventionalProperty",
+        "rdfs:label": "BruggemanCoefficient",
+        "hasNumericalPart": {
+          "@type": "emmo:RealData",
+          "hasNumberValue": 4.2
+        },
+        "hasMeasurementUnit": "emmo:UnitOne"
+      },
+      {
+        "@type": "ConventionalProperty",
+        "rdfs:label": "ElectrolyteBruggemanCoefficient",
+        "hasNumericalPart": {
+          "@type": "emmo:RealData",
+          "hasNumberValue": 1.6267795515332075
+        },
+        "hasMeasurementUnit": "emmo:UnitOne"
+      }
+    ]
+  },
+  "@id": "https://w3id.org/battinfo/cell-type/7mp5-7012-0h0b-sc26",
+  "schema:model": "IMP5-70-120-H0B",
+  "schema:name": "IMP5-70-120-H0B",
+  "schema:isBasedOn": {
+    "@type": "schema:CreativeWork",
+    "@id": "https://doi.org/10.5281/zenodo.18256663",
+    "schema:url": "https://doi.org/10.5281/zenodo.18256663",
+    "schema:name": "Graphite/LNMO BattMo publication workflow",
+    "schema:identifier": "scripts/generate_optimization_linked_data.py",
+    "schema:version": "battinfo-structure-refactor",
+    "schema:description": "Derived from parameters/h0b-base.json, parameters/equilibrium-calibration-parameters.json, and parameters/high-rate-calibration-parameters.json.",
+    "schema:dateModified": "2026-03-27T10:58:59+00:00"
+  },
+  "schema:citation": {
+    "@id": "https://doi.org/10.5281/zenodo.18256663"
+  },
+  "hasMeasuredProperty": [
+    {
+      "@type": [
+        "InititalThermodynamicTemperature",
+        "ConventionalProperty",
+        "electrochemistry:electrochemistry_9c9b80a4_a00b_4b91_8e17_3a7831f2bf2f"
+      ],
+      "rdfs:label": "InitialTemperature",
+      "hasNumericalPart": {
+        "@type": "emmo:RealData",
+        "hasNumberValue": 298.15
+      },
+      "hasMeasurementUnit": "emmo:Kelvin"
+    },
+    {
+      "@type": [
+        "LowerVoltageLimit",
+        "ConventionalProperty",
+        "electrochemistry:electrochemistry_534dd59c_904c_45d9_8550_ae9d2eb6bbc9"
+      ],
+      "rdfs:label": "LowerCutoffVoltage",
+      "hasNumericalPart": {
+        "@type": "emmo:RealData",
+        "hasNumberValue": 3.5
+      },
+      "hasMeasurementUnit": "emmo:Volt"
+    }
+  ]
+}
