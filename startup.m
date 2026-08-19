@@ -13,12 +13,26 @@ function startup()
     cleanupObj = onCleanup(@() cd(cwdir)); %#ok<NASGU>
     configurePythonExecutable(repoRoot);
     cd(battmo);
+
+    % Check that the current battmo branch is august/hydra-bgfactor
+    git = @(varargin) system(['git ', strjoin(varargin, ' ')]);
+    [st, gitBranch] = git('rev-parse', '--abbrev-ref', 'HEAD', battmo);
+    assert(st == 0, 'Failed to get current git branch. Is this a git repository?');
+    gitBranch = strtrim(gitBranch);
+    if ~strcmp(gitBranch, 'august/hydra-bgfactor')
+        st = git('-C', battmo, 'checkout', 'august/hydra-bgfactor');
+        assert(st == 0, 'Failed to checkout BattMo branch august/hydra-bgfactor. Please check your BattMo git repository.');
+    end
+
     run('startupBattMo.m')
     cd(cwdir);
 
     mrstModule add ad-core optimization mpfa
 
-    fprintf('\nCurrent directory: %s\n\n', pwd());
+    fprintf('\nCurrent directory: %s\n', pwd());
+    fprintf('Current BattMo path: %s\n', battmo);
+    fprintf('Current BattMo branch: %s\n\n', gitBranch);
+
 
 end
 
@@ -37,11 +51,11 @@ function battmo = resolveBattMoPath(repoRoot)
     end
 
     % Common workspace layouts used in this repository.
+    candidates{end+1} = fullfile(repoRoot, 'BattMo'); %#ok<AGROW>
     candidates{end+1} = fullfile(parent2, 'BattMo', 'BattMo', 'BattMo'); %#ok<AGROW>
     candidates{end+1} = fullfile(parent2, 'BattMo', 'BattMo'); %#ok<AGROW>
     candidates{end+1} = fullfile(parent2, 'BattMo'); %#ok<AGROW>
     candidates{end+1} = fullfile(parent1, 'BattMo'); %#ok<AGROW>
-    candidates{end+1} = fullfile(repoRoot, 'BattMo'); %#ok<AGROW>
 
     candidates = unique(candidates, 'stable');
 
@@ -50,15 +64,6 @@ function battmo = resolveBattMoPath(repoRoot)
         if isfolder(c) && isfile(fullfile(c, 'startupBattMo.m'))
             battmo = c;
             fprintf('Using BattMo path: %s\n', battmo);
-
-            % Check that the current branch is august/hydra-bgfactor
-            gitBranch = strtrim(git('rev-parse', '--abbrev-ref', 'HEAD', c));
-            if ~contains(gitBranch, 'august/hydra-bgfactor')
-                error(['The BattMo repository is on branch "%s". Please ', ...
-                         'switch to the "august/hydra-bgfactor" branch for compatibility with this ', ...
-                         'repository.'], gitBranch);
-            end
-
             return;
         end
     end
