@@ -1,0 +1,3 @@
+[submodule "BattMo"]
+	path = BattMo
+	url = git@github.com:BattMoTeam/BattMo.git
