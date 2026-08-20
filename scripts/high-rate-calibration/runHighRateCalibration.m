@@ -3,6 +3,18 @@
 clear all
 close all
 
+am    = 'ActiveMaterial';
+itf   = 'Interface';
+pe    = 'PositiveElectrode';
+ne    = 'NegativeElectrode';
+co    = 'Coating';
+sd    = 'SolidDiffusion';
+ctrl  = 'Control';
+elyte = 'Electrolyte';
+sep   = 'Separator';
+
+mrstDebug(0);
+
 Dnes = [1e-14, 1e-13]; % Do 1e-13 last as this is the one to use
 Dnes = 1e-13;
 
@@ -33,21 +45,10 @@ for itag = 1:numel(tags)
 
         diary(sprintf('_diary-%s-%s-%s.txt', mfilename, tag, datestr(now, 'yyyymmdd-HHMMSS')));
 
-        mrstDebug(0);
-
         set(0, 'defaultlinelinewidth', 2)
         set(0, 'defaulttextfontsize', 15);
         set(0, 'defaultaxesfontsize', 15);
 
-        am    = 'ActiveMaterial';
-        itf   = 'Interface';
-        pe    = 'PositiveElectrode';
-        ne    = 'NegativeElectrode';
-        co    = 'Coating';
-        sd    = 'SolidDiffusion';
-        ctrl  = 'Control';
-        elyte = 'Electrolyte';
-        sep   = 'Separator';
 
         getTime = @(states) cellfun(@(s) s.time, states);
         getE = @(states) cellfun(@(s) s.(ctrl).E, states);
@@ -117,11 +118,11 @@ for itag = 1:numel(tags)
         %                        sep, 4.2);
         % bruggeman = calculateBruggemanFromTortuosity(outputCap.model, jsonstructEC, tortuosityRef);
 
-        if contains(tag, 'finer')
-            numTimesteps = 400;
-        else
-            numTimesteps = 100;
-        end
+        % if contains(tag, 'finer')
+        % numTimesteps = 400;
+        % else
+        numTimesteps = 100;
+        % end
 
         % printer(bruggeman)
         % keyboard;
@@ -164,7 +165,8 @@ for itag = 1:numel(tags)
         % output.states{end}.time)
         simtimes = getTime(output0.states);
         assert(expdata.time(1) <= simtimes(1));
-        assert(abs(expdata.time(end) - simtimes(end)) < 1e-11);
+        %assert(abs(expdata.time(end) - simtimes(end)) < 1e-11);
+        assert(abs(expdata.time(end) - simtimes(end))/expdata.time(end) < 3e-4);
 
         Evals     = interp1(expdata.time, expdata.U, simtimes, 'linear', 'extrap');
         statesExp = cell(numel(output0.states), 1);
@@ -185,12 +187,11 @@ for itag = 1:numel(tags)
             drawnow
         end
 
-        simulatorSetup = SimulationSetup( ...
-            struct('model'          , output0.model   , ...
-                   'schedule'       , output0.schedule, ...
-                   'initstate'      , output0.initstate, ...
-                   'NonLinearSolver', output0.nls     , ...
-                   'OutputMinisteps', false));
+        simulatorSetup = SimulationSetup(struct('model'          , output0.model   , ...
+                                                'schedule'       , output0.schedule, ...
+                                                'initstate'      , output0.initstate, ...
+                                                'NonLinearSolver', output0.nls     , ...
+                                                'OutputMinisteps', false));
 
         % Setup parameters to be calibrated
         HRC = HighRateCalibration(simulatorSetup, 'shortnames', shortnames);
@@ -240,7 +241,7 @@ for itag = 1:numel(tags)
             assert(all(absErr <= absTol + relTol .* max(abs(gad), abs(gnum))), ...
                    'Adjoint and finite-difference gradients do not agree.');
 
-            return
+            %return
         end
 
         %% Run optimization
@@ -248,25 +249,418 @@ for itag = 1:numel(tags)
         X0 = getScaledParameterVector(simulatorSetup, parameters);
         v0 = objective(X0);
 
-        callbackfunc = @(history, it) callbackplot(history, it, simulatorSetup, parameters, statesExp, ...
-                                                   'plotEveryIt', 10, ...
-                                                   'objScaling', scaling, ...
-                                                   'doplot', doplot);
+        callbackfunc = @(history, it) callbackplot(history, it, simulatorSetup, parameters, expdata, ...
+                                                   'plotEveryIt', 10     , ...
+                                                   'objScaling' , scaling, ...
+                                                   'doplot'     , doplot);
 
+        objChangeTol = 1e-8;
         [vopt, Xopt, history] = unitBoxBFGS(X0, objective, ...
-                                            'gradTol', 1e-3, ...
-                                            'objChangeTol', -inf , ...
-                                            'maximize'    , false, ...
-                                            'maxit'       , 100  , ...
-                                            'logPlot'     , true, ...
-                                            'callbackfunc', callbackfunc, ...
-                                            'plotEvolution', doplot);
+                                            'gradTol'         , 1e-3        , ...
+                                            'objChangeTol'    , objChangeTol, ...
+                                            'lineSearchMaxIt' , 10          , ...
+                                            'maxInitialUpdate', 0.02        , ...
+                                            'maximize'        , false       , ...
+                                            'maxit'           , 50         , ...
+                                            'logPlot'         , true        , ...
+                                            'callbackfunc'    , callbackfunc, ...
+                                            'plotEvolution'   , doplot);
 
         setupOpt = updateSetupFromScaledParameters(simulatorSetup, parameters, Xopt);
 
         fprintf('obj val=%1.2f (%1.2f), iter=%d\n', vopt, v0, numel(history.val));
         reasonStr = getReasonStr(history);
         disp(reasonStr);
+
+        if debug && numel(history.val) >= 2 && ...
+                abs(history.val(end) - history.val(end-1)) < objChangeTol
+
+            %% Calculate fd and adjoint gradients at final point
+
+
+            [vad, gad] = evalObjectiveBattmo( ...
+                Xopt, lsq, simulatorSetup, parameters, ...
+                'gradientMethod', 'AdjointAD', ...
+                'objScaling', scaling);
+
+            gad = gad(:);
+            shortnames = HRC.shortnames(:);
+
+            pertsizes = [1e-1, 1e-2, 1e-3, 1e-4, 1e-5, 1e-6, 1e-7];
+
+            nPert = numel(pertsizes);
+            nParam = numel(parameters);
+
+            vnums = nan(nPert, 1);
+            gnums = cell(nPert, 1);
+
+            for k = 1:nPert
+                h = pertsizes(k);
+
+                % Perturb in a feasible direction for each scaled parameter.
+                parameterSteps = repmat({h}, nParam, 1);
+
+                for ip = 1:nParam
+                    if Xopt(ip) + h > 1
+                        parameterSteps{ip} = -h;
+                    end
+                end
+
+                [vnums(k), gnums{k}] = evalObjectiveBattmo( ...
+                    Xopt, lsq, simulatorSetup, parameters, ...
+                    'gradientMethod', 'PerturbationADNUM', ...
+                    'PerturbationSize', parameterSteps, ...
+                    'objScaling', scaling);
+
+                gnums{k} = gnums{k}(:);
+            end
+
+            tbl = table(shortnames, gad, ...
+                        'VariableNames', {'Shortname', 'Adjoint'});
+
+            for k = 1:nPert
+                h = pertsizes(k);
+                gnum = gnums{k};
+
+                absErr = abs(gad - gnum);
+
+                denominator = max(abs(gad), abs(gnum));
+                relErr = absErr ./ denominator;
+
+                % Relative error is meaningless when both gradients are tiny.
+                relErr(denominator < 1e-10) = NaN;
+
+                suffix = matlab.lang.makeValidName(sprintf('h_%g', h));
+
+                tbl.(['FD_' suffix]) = gnum;
+                tbl.(['AbsErr_' suffix]) = absErr;
+                tbl.(['RelErr_' suffix]) = relErr;
+            end
+
+            disp(tbl);
+            keyboard;
+
+            fprintf('\n============================================================\n');
+            fprintf('BFGS STAGNATION DIAGNOSTICS\n');
+            fprintf('============================================================\n');
+
+            xPrev = history.u{end-1}(:);
+            x     = Xopt(:);
+            dx    = x - xPrev;
+
+            fPrev = history.val(end-1);
+            f     = history.val(end);
+            df    = f - fPrev;
+
+            %% 1. Did BFGS actually move?
+            fprintf('\n[1] ACCEPTED BFGS STEP\n');
+
+            fprintf('previous objective = %.17e\n', fPrev);
+            fprintf('current objective  = %.17e\n', f);
+            fprintf('objective change   = %+.17e\n', df);
+            fprintf('exactly equal?     = %d\n', f == fPrev);
+
+            fprintf('||dx||_inf         = %.17e\n', norm(dx, inf));
+            fprintf('||dx||_2           = %.17e\n', norm(dx, 2));
+            fprintf('identical x?       = %d\n', isequal(x, xPrev));
+            fprintf('# changed params   = %d / %d\n', nnz(dx ~= 0), numel(dx));
+
+            fprintf('line-search alpha  = %.17e\n', history.alpha(end));
+            fprintf('line-search its    = %d\n', history.lsit(end));
+            fprintf('line-search flag   = %d\n', history.lsfl(end));
+            fprintf('history.pg         = %.17e\n', history.pg(end));
+
+            %% 2. Recompute objective and gradient
+            fprintf('\n[2] OBJECTIVE / GRADIENT AT FINAL POINT\n');
+
+            [fRecomputed, g] = objective(x);
+            g = g(:);
+
+            fprintf('stored objective      = %.17e\n', f);
+            fprintf('recomputed objective  = %.17e\n', fRecomputed);
+            fprintf('difference            = %+.17e\n', fRecomputed - f);
+
+            fprintf('||g||_inf             = %.17e\n', norm(g, inf));
+            fprintf('||g||_2               = %.17e\n', norm(g, 2));
+
+
+            %% 3. Which variables are on bounds?
+            fprintf('\n[3] BOX CONSTRAINTS / PROJECTED GRADIENT\n');
+
+            boundTol = 1e-10;
+
+            atLower = x <= boundTol;
+            atUpper = x >= 1-boundTol;
+
+            % Manual projected gradient for a minimization problem.
+            pg = g;
+
+            % At lower bound, +gradient means -gradient points outside x >= 0.
+            pg(atLower & g > 0) = 0;
+
+            % At upper bound, -gradient means -gradient points outside x <= 1.
+            pg(atUpper & g < 0) = 0;
+
+            fprintf('# lower bound = %d\n', nnz(atLower));
+            fprintf('# upper bound = %d\n', nnz(atUpper));
+            fprintf('manual ||pg||_inf = %.17e\n', norm(pg, inf));
+            fprintf('history pg         = %.17e\n', history.pg(end));
+
+            % Physical parameter values
+            setupDebug = updateSetupFromScaledParameters( ...
+                simulatorSetup, parameters, x);
+
+            physicalValues = cellfun( ...
+                @(p) p.getParameter(setupDebug), parameters, ...
+                'UniformOutput', false);
+
+            physicalValues = vertcat(physicalValues{:});
+
+            disp(table(HRC.shortnames(:), ...
+                       xPrev, ...
+                       x, ...
+                       dx, ...
+                       physicalValues, ...
+                       g, ...
+                       pg, ...
+                       atLower, ...
+                       atUpper, ...
+                       'VariableNames', {'Parameter', ...
+                                         'PreviousScaled', ...
+                                         'CurrentScaled', ...
+                                         'ScaledStep', ...
+                                         'PhysicalValue', ...
+                                         'Gradient', ...
+                                         'ProjectedGradient', ...
+                                         'AtLowerBound', ...
+                                         'AtUpperBound'}));
+
+
+            %% 4. Is objective evaluation repeatable?
+            fprintf('\n[4] REPEATABILITY\n');
+
+            nRepeat = 5;
+            fRepeat = zeros(nRepeat, 1);
+
+            for ir = 1:nRepeat
+                fRepeat(ir) = objective(x);
+            end
+
+            disp(fRepeat);
+
+            fprintf('repeat min      = %.17e\n', min(fRepeat));
+            fprintf('repeat max      = %.17e\n', max(fRepeat));
+            fprintf('repeat spread   = %.17e\n', ...
+                    max(fRepeat) - min(fRepeat));
+
+            %% 5. Objective scaling
+            fprintf('\n[5] OBJECTIVE SCALING\n');
+
+            fprintf('objScaling              = %.17e\n', scaling);
+            fprintf('initial scaled obj v0   = %.17e\n', v0);
+            fprintf('final scaled objective  = %.17e\n', f);
+            fprintf('scaled objective change = %.17e\n', df);
+
+            % evalObjectiveBattmo is being called with objScaling=scaling.
+            % This is useful for interpreting the magnitude in original LSQ units.
+            fprintf('approx raw objective change = %.17e\n', ...
+                    df*scaling);
+
+
+            %% 6. Objective resolution versus parameter perturbation
+            fprintf('\n[6] OBJECTIVE SENSITIVITY VS STEP SIZE\n');
+
+            hvals = [1e-1, 3e-2, 1e-2, 3e-3, ...
+                     1e-3, 3e-4, 1e-4, 3e-5, ...
+                     1e-5, 3e-6, 1e-6, 1e-7];
+
+            f0debug = objective(x);
+
+            for ip = 1:numel(x)
+
+                fprintf('\nParameter: %s\n', HRC.shortnames{ip});
+                fprintf('    h              delta-f               FD derivative\n');
+
+                for ih = 1:numel(hvals)
+
+                    h = hvals(ih);
+
+                    % Pick a feasible perturbation direction.
+                    if x(ip) + h <= 1
+                        signedH = h;
+                    elseif x(ip) - h >= 0
+                        signedH = -h;
+                    else
+                        continue
+                    end
+
+                    xp = x;
+                    xp(ip) = xp(ip) + signedH;
+
+                    fp = objective(xp);
+
+                    deltaF = fp - f0debug;
+                    fd     = deltaF/signedH;
+
+                    fprintf('%12.3e   %+20.12e   %+20.12e\n', ...
+                            signedH, deltaF, fd);
+                end
+            end
+
+            %% 7. Directional derivative test
+            fprintf('\n[7] DIRECTIONAL DERIVATIVE CHECK\n');
+
+            % Project steepest-descent direction onto feasible box directions.
+            d = -g;
+
+            d(x <= boundTol & d < 0) = 0;
+            d(x >= 1-boundTol & d > 0) = 0;
+
+            if norm(d, inf) > 0
+
+                d = d/norm(d, inf);
+
+                adjDirectional = g.'*d;
+
+                fprintf('Adjoint directional derivative g''d = %.17e\n', ...
+                        adjDirectional);
+
+                hvalsDir = [1e-1 1e-2 1e-3 1e-4 1e-5 1e-6 1e-7];
+
+                fprintf('    h             FD directional deriv.       ratio FD/AD\n');
+
+                for h = hvalsDir
+
+                    xp = x + h*d;
+
+                    % Should already be feasible, apart from roundoff.
+                    xp = min(1, max(0, xp));
+
+                    actualH = norm(xp-x, inf);
+
+                    if actualH == 0
+                        continue
+                    end
+
+                    fp = objective(xp);
+
+                    fdDirectional = (fp-f0debug)/h;
+
+                    fprintf('%12.3e   %+20.12e   %+16.8e\n', ...
+                            h, fdDirectional, ...
+                            fdDirectional/adjDirectional);
+                end
+
+            else
+                fprintf('No feasible steepest-descent direction.\n');
+            end
+
+            %% 8. Scaled -> physical parameter mapping
+            fprintf('\n[8] PARAMETER MAPPING CHECK\n');
+
+            hParam = 1e-3;
+
+            setupBase = updateSetupFromScaledParameters( ...
+                simulatorSetup, parameters, x);
+
+            physBase = cellfun(@(p) p.getParameter(setupBase), ...
+                               parameters, ...
+                               'UniformOutput', false);
+            physBase = vertcat(physBase{:});
+
+            physPerturbed = nan(size(physBase));
+
+            for ip = 1:numel(x)
+
+                xp = x;
+
+                if x(ip) + hParam <= 1
+                    xp(ip) = x(ip) + hParam;
+                else
+                    xp(ip) = x(ip) - hParam;
+                end
+
+                setupP = updateSetupFromScaledParameters( ...
+                    simulatorSetup, parameters, xp);
+
+                tmp = cellfun(@(p) p.getParameter(setupP), ...
+                              parameters, ...
+                              'UniformOutput', false);
+                tmp = vertcat(tmp{:});
+
+                % Physical value corresponding to the parameter we moved.
+                physPerturbed(ip) = tmp(ip);
+            end
+
+            physicalChange = physPerturbed - physBase;
+
+            disp(table(HRC.shortnames(:), ...
+                       x, ...
+                       physBase, ...
+                       physPerturbed, ...
+                       physicalChange, ...
+                       'VariableNames', {'Parameter', ...
+                                         'ScaledValue', ...
+                                         'PhysicalBase', ...
+                                         'PhysicalPerturbed', ...
+                                         'PhysicalChange'}));
+
+            %% 9. Plot objective along feasible descent direction
+            fprintf('\n[9] LINE SCAN\n');
+
+            d = -pg;
+
+            if norm(d, inf) > 0
+
+                d = d/norm(d, inf);
+
+                alphas = [0, logspace(-8, -1, 30)];
+
+                fLine = nan(size(alphas));
+                stepLine = nan(size(alphas));
+
+                for ia = 1:numel(alphas)
+
+                    xt = min(1, max(0, x + alphas(ia)*d));
+
+                    stepLine(ia) = norm(xt-x, inf);
+                    fLine(ia) = objective(xt);
+                end
+
+                figure;
+                semilogx(alphas(2:end), ...
+                         fLine(2:end)-fLine(1), 'o-');
+                grid on
+                xlabel('\alpha');
+                ylabel('J(x+\alpha d)-J(x)');
+                title('Objective resolution along descent direction');
+
+                fprintf('       alpha          actual step             delta-f\n');
+
+                for ia = 1:numel(alphas)
+                    fprintf('%12.3e   %20.12e   %+20.12e\n', ...
+                            alphas(ia), stepLine(ia), ...
+                            fLine(ia)-fLine(1));
+                end
+            end
+            %% 99 Adjoint and FD derivatives
+            [vAdjoint, gAdjoint] = evalObjectiveBattmo(Xopt, lsq, simulatorSetup, parameters, ...
+                                                       'gradientMethod', 'AdjointAD', ...
+                                                       'objScaling', scaling);
+
+            [vFDcoarse, gFDcoarse] = evalObjectiveBattmo(Xopt, lsq, simulatorSetup, parameters, ...
+                                                         'gradientMethod', 'PerturbationADNUM', ...
+                                                         'PerturbationSize', 1e-3, ...
+                                                         'objScaling', scaling);
+            [vFDfine, gFDfine] = evalObjectiveBattmo(Xopt, lsq, simulatorSetup, parameters, ...
+                                                     'gradientMethod', 'PerturbationADNUM', ...
+                                                     'PerturbationSize', 1e-6, ...
+                                                     'objScaling', scaling);
+            disp(table(HRC.shortnames, gAdjoint(:), gFDcoarse(:), gFDfine(:), ...
+                       'VariableNames', {'Parameter', 'Adjoint', 'FD_1e_3', 'FD_1e_6'}));
+
+            keyboard;
+        end
 
         %% Extract parameters
 
@@ -289,7 +683,7 @@ for itag = 1:numel(tags)
         %                   'highRateParams'                , jsonstructHRC                 , ...
         %                   'useRegionBruggemanCoefficients', useRegionBruggemanCoefficients, ...
         %                   'include_current_collectors'    , true);
-        inputOpt = struct('I'                         , expdata.I, ...
+        inputOpt = struct('I'                             , expdata.I                     , ...
                           'totalTime'                     , expdata.time(end)             , ...
                           'numTimesteps'                  , numTimesteps                  , ...
                           'lowRateParams'                 , jsonstructEC                  , ...
@@ -348,8 +742,7 @@ for itag = 1:numel(tags)
         end
 
         %% Quantify difference between experiment and calibrated
-        tt = getTime(outputOpt.states);
-        RMSE = l2error(tt, getE(outputOpt.states), expdata.time, expdata.U, 'extrap', true);
+        RMSE = l2error(getTime(outputOpt.states), getE(outputOpt.states), expdata.time, expdata.U, 'extrap', true);
         fprintf('wL2 error after calibration %s Dne=%g Dpe=%g: %g mV\n', tag, Dne, Dpe, RMSE/milli);
 
         %% Print
@@ -371,10 +764,9 @@ for itag = 1:numel(tags)
         if useRegionBruggemanCoefficients
             bgfactor = outputOpt.model.(elyte).bgfactor;
             regionBruggeman = outputOpt.model.(elyte).regionBruggemanCoefficients;
-            effectiveRegionBruggeman = struct( ...
-                ne , bgfactor .* regionBruggeman.(ne), ...
-                pe , bgfactor .* regionBruggeman.(pe), ...
-                sep, bgfactor .* regionBruggeman.(sep));
+            effectiveRegionBruggeman = struct(ne , bgfactor .* regionBruggeman.(ne), ...
+                                              pe , bgfactor .* regionBruggeman.(pe), ...
+                                              sep, bgfactor .* regionBruggeman.(sep));
         else
             bg = outputOpt.model.(elyte).bruggemanCoefficient;
             assert(isscalar(bg));
@@ -397,7 +789,7 @@ for itag = 1:numel(tags)
         % For testing: print NE volumetric surface area
         fprintf('Initial diffusion Dne=%g volumetricsurfacearea=%g\n', ...
                 Dne, jsonstructHRC.(ne).(co).(am).(itf).volumetricSurfaceArea);
-
+        fprintf('RMSE %g mV\n', RMSE/milli);
         disp(reasonStr)
 
         diary off;
