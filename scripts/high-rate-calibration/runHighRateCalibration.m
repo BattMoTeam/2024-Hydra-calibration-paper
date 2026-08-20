@@ -147,6 +147,10 @@ for itag = 1:numel(tags)
                         'include_current_collectors'    , true);
         output0 = runHydra(input0, 'clearSimulation', false);
 
+        % Diagnostic: do not silently introduce ministeps for adjoint consistency
+        output0.nls.timeStepSelector = SimpleTimeStepSelector();
+        output0.nls.maxTimestepCuts = 0;
+
         if debug
             % Check how exp and initial guess compare
             figure; hold on; grid on;
