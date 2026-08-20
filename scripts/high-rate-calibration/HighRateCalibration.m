@@ -283,8 +283,7 @@ end
 
 function value = getEldeBruggeman(model, electrode)
 
-    co = 'Coating';
-    value = model.(electrode).(co).bruggemanCoefficient;
+    value = model.(electrode).Coating.bruggemanCoefficient;
 
 end
 
@@ -306,8 +305,7 @@ end
 
 function value = getElyteRegionBruggeman(model, region)
 
-    elyte = 'Electrolyte';
-    value = model.(elyte).regionBruggemanCoefficients.(region);
+    value = model.Electrolyte.regionBruggemanCoefficients.(region);
 
 end
 
@@ -315,9 +313,7 @@ end
 function model = setElyteRegionBruggeman(model, value, region)
 
     assert(~model.use_thermal);
-
-    elyte = 'Electrolyte';
-    model.(elyte).regionBruggemanCoefficients.(region) = value;
+    model.Electrolyte.regionBruggemanCoefficients.(region) = value;
     model = updateElyteBruggemanCoefficient(model);
 
 end
@@ -325,8 +321,7 @@ end
 
 function value = getElyteBgfactor(model)
 
-    elyte = 'Electrolyte';
-    value = model.(elyte).bgfactor;
+    value = model.Electrolyte.bgfactor;
 
 end
 
@@ -334,9 +329,7 @@ end
 function model = setElyteBgfactor(model, value)
 
     assert(~model.use_thermal);
-
     model.Electrolyte.bgfactor = value;
-    % model = updateElyteBruggemanCoefficient(model);
 
 end
 
@@ -351,12 +344,6 @@ function model = updateElyteBruggemanCoefficient(model)
     numberOfCells = model.(elyte).G.getNumberOfCells();
     tags = model.(elyte).regionTags;
     regionValues = model.(elyte).regionBruggemanCoefficients;
-    % bgfactor = model.(elyte).bgfactor;
-
-    % bg = zeros(numberOfCells, 1);
-    % bg = subsetPlus(bg, bgfactor .* regionValues.(ne), tags == 1);
-    % bg = subsetPlus(bg, bgfactor .* regionValues.(pe), tags == 2);
-    % bg = subsetPlus(bg, bgfactor .* regionValues.(sep), tags == 3);
 
     bg = zeros(numberOfCells, 1);
     bg = subsetPlus(bg, regionValues.(ne), tags == 1);
