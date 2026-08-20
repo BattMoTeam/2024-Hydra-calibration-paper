@@ -1,8 +1,17 @@
-function [reasonStr, tbl] = getReasonStr(history, colname)
+function [reasonStr, tbl] = getReasonStr(history, varargin)
 
-    if nargin < 2
-        colname = '';
-    end
+    opt = struct('gradTol'     , [], ...
+                 'objChangeTol', [], ...
+                 'maxit'       , []);
+    opt = merge_options(opt, varargin{:});
+
+    % Pass all or none
+    criteriaPassed = [~isempty(opt.gradTol), ...
+                      ~isempty(opt.objChangeTol), ...
+                      ~isempty(opt.maxit)];
+    assert(all(criteriaPassed) || ~any(criteriaPassed), ...
+           'Pass gradTol, objChangeTol, and maxit together.');
+    markCriteria = all(criteriaPassed);
 
     if numel(history.val) == 1
 
@@ -31,25 +40,40 @@ function [reasonStr, tbl] = getReasonStr(history, colname)
 
     end
 
+    numIterations = numel(history.val);
+    % The history also contains the initial point at BFGS iteration zero.
+    optimizerIterations = numIterations - 1;
+    itstr = sprintf('number of iterations %g\n', numIterations);
+
+    % Put a > in front of the criteria (may be several)
+    if markCriteria
+        if numel(history.val) >= 2 && ...
+                abs(history.val(end) - history.val(end-1)) < opt.objChangeTol
+            valdiffstr = ['> ', valdiffstr];
+        end
+        if history.pg(end) < opt.gradTol
+            pgstr = ['> ', pgstr];
+        end
+        if optimizerIterations >= opt.maxit
+            itstr = ['> ', itstr];
+        end
+    end
+
     reasonStr = [sprintf('Reason for termination:\n'), ...
                  valstr, ...
                  valdiffstr, ...
                  pgstr, ...
                  pgdiffstr, ...
-                 sprintf('number of iterations %g\n', numel(history.val))];
+                 itstr];
 
     rows = {'Obj value (end)'; 'Obj value diff (end-1:end)'; 'Pg (end)'; 'Pg diff (end-1:end)'; 'Num iterations'};
     values = [history.val(end), ...
               abs(history.val(end)-history.val(end-1)), ...
               history.pg(end), ...
               abs(history.pg(end)-history.pg(end-1)), ...
-              numel(history.val)]';
+              numIterations]';
 
     tbl = table(values, 'RowNames', rows);
-
-    if ~isempty(colname)
-        tbl.Properties.VariableNames = {colname};
-    end
 
 end
 
