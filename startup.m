@@ -16,13 +16,13 @@ function startup()
 
     % Check that the current battmo branch is august/hydra-bgfactor
     git = @(varargin) system(['git ', strjoin(varargin, ' ')]);
-    [st, gitBranch] = git('rev-parse', '--abbrev-ref', 'HEAD', battmo);
+    [st, gitBranch] = git('-C', battmo, 'rev-parse', '--abbrev-ref', 'HEAD');
     assert(st == 0, 'Failed to get current git branch. Is this a git repository?');
     gitBranch = strtrim(gitBranch);
-    if ~strcmp(gitBranch, 'august/hydra-bgfactor')
-        st = git('-C', battmo, 'checkout', 'august/hydra-bgfactor');
-        assert(st == 0, 'Failed to checkout BattMo branch august/hydra-bgfactor. Please check your BattMo git repository.');
-    end
+
+    [st, gitHash] = git('-C', battmo, 'rev-parse', '--short', 'HEAD');
+    assert(st == 0, 'Failed to get current git commit.');
+    gitHash = strtrim(gitHash);
 
     run('startupBattMo.m')
     cd(cwdir);
@@ -31,8 +31,7 @@ function startup()
 
     fprintf('\nCurrent directory: %s\n', pwd());
     fprintf('Current BattMo path: %s\n', battmo);
-    fprintf('Current BattMo branch: %s\n\n', gitBranch);
-
+    fprintf('Current BattMo branch: %s (%s)\n\n', gitBranch, gitHash);
 
 end
 
@@ -146,21 +145,21 @@ end
 
 
 %{
-Copyright 2021-2026 SINTEF Industry, Sustainable Energy Technology
-and SINTEF Digital, Mathematics & Cybernetics.
+  Copyright 2021-2026 SINTEF Industry, Sustainable Energy Technology
+  and SINTEF Digital, Mathematics & Cybernetics.
 
-This file is part of The Battery Modeling Toolbox BattMo
+  This file is part of The Battery Modeling Toolbox BattMo
 
-BattMo is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
+  BattMo is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
 
-BattMo is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+  BattMo is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with BattMo.  If not, see <http://www.gnu.org/licenses/>.
+  You should have received a copy of the GNU General Public License
+  along with BattMo.  If not, see <http://www.gnu.org/licenses/>.
 %}
