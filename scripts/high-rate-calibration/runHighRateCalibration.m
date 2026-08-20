@@ -692,6 +692,8 @@ for itag = 1:numel(tags)
                           'include_current_collectors'    , true);
         outputOpt = runHydra(inputOpt, 'clearSimulation', false);
 
+        assert(outputOpt.model.Electrolyte.bgfactor == setupOpt.model.Electrolyte.bgfactor);
+
         %% Quantify differences
         vfinal = lsq(simulatorSetup, outputOpt.states);
 
@@ -762,12 +764,15 @@ for itag = 1:numel(tags)
         assert(isscalar(vfs.(sep)));
 
         if useRegionBruggemanCoefficients
-            bgfactor = outputOpt.model.(elyte).bgfactor;
+            %bgfactor = outputOpt.model.(elyte).bgfactor;
             regionBruggeman = outputOpt.model.(elyte).regionBruggemanCoefficients;
-            effectiveRegionBruggeman = struct(ne , bgfactor .* regionBruggeman.(ne), ...
-                                              pe , bgfactor .* regionBruggeman.(pe), ...
-                                              sep, bgfactor .* regionBruggeman.(sep));
-        else
+            % effectiveRegionBruggeman = struct(ne , bgfactor .* regionBruggeman.(ne), ...
+            %                                   pe , bgfactor .* regionBruggeman.(pe), ...
+            %                                   sep, bgfactor .* regionBruggeman.(sep));
+            effectiveRegionBruggeman = struct(ne , regionBruggeman.(ne), ...
+                                              pe , regionBruggeman.(pe), ...
+                                              sep, regionBruggeman.(sep));
+       else
             bg = outputOpt.model.(elyte).bruggemanCoefficient;
             assert(isscalar(bg));
             effectiveRegionBruggeman = struct(ne, bg, pe, bg, sep, bg);
