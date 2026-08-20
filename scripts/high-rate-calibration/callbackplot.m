@@ -1,8 +1,12 @@
-function callbackplot(history, it, simulatorSetup, parameters, statesExp, varargin)
+function callbackplot(history, it, simulatorSetup, parameters, expdata, varargin)
+%    function callbackplot(history, it, simulatorSetup, parameters, statesExp, varargin)
 
     opt = struct('plotEveryIt', 1, ...
                  'nonLinearSolver', [], ...
                  'objScaling', [], ...
+                 'usePacked', true, ...
+                 'cutoffVoltage', [], ...
+                 'allowExtrapolation', true, ...
                  'doplot', true);
 
     opt = merge_options(opt, varargin{:});
@@ -41,40 +45,96 @@ function callbackplot(history, it, simulatorSetup, parameters, statesExp, vararg
         X = history.u{end};
         setup = updateSetupFromScaledParameters(simulatorSetup, parameters, X);
 
-        dataFolder = md5sum(setup.model);
-        problem = packSimulationProblem(setup.initstate, setup.model, setup.schedule, dataFolder, ...
-                                        'NonLinearSolver', opt.nonLinearSolver);
-        clearPackedSimulatorOutput(problem, 'Prompt', false);
-        simulatePackedProblem(problem);
-        [~, states] = getPackedSimulatorOutput(problem);
+        if opt.usePacked
+            directory = fullfile(getHydra0Dir(), 'output');
+            dataFolder = md5sum(setup.model);
+            problem = packSimulationProblem(setup.initstate, setup.model, setup.schedule, dataFolder, ...
+                                            'Directory', directory, ...
+                                            'Name', dataFolder, ...
+                                            'NonLinearSolver', opt.nonLinearSolver);
+            clearPackedSimulatorOutput(problem, 'Prompt', false);
+            simulatePackedProblem(problem);
+            [~, states] = getPackedSimulatorOutput(problem);
+        else
+            states = setup.run();
+        end
+        states = truncateStatesAtCutoff(states, opt.cutoffVoltage);
 
         % Quantify difference
         getTime = @(states) cellfun(@(state) state.time, states);
         getE = @(states) cellfun(@(state) state.Control.E, states);
 
-        texp = getTime(statesExp);
-        t    = getTime(states);
-        assert(norm(texp-t, 'inf') < 1e-11);
+        simulationTime = getTime(states);
+        simulationVoltage = getE(states);
 
-        Eexp = getE(statesExp);
-        E    = getE(states);
-
-        Ediff1 = trapz(texp, abs(Eexp - E));
-        Ediff2 = sqrt(trapz(texp, (Eexp - E).^2));
-
-        if ~isempty(opt.objScaling)
-            Ediff1 = Ediff1 / opt.objScaling;
-            Ediff2 = Ediff2 / opt.objScaling;
+        if isempty(states)
+            disp('RMSE unavailable: no above-cutoff simulation states');
+            return
         end
 
-        str = sprintf('Integral error %g (%g)', Ediff1, Ediff2);
+        % texp = getTime(statesExp);
+        % t    = getTime(states);
+        % assert(norm(texp-t, 'inf') < 1e-11);
+
+        % Eexp = getE(statesExp);
+        % E    = getE(states);
+
+        % Ediff1 = trapz(texp, abs(Eexp - E));
+        % Ediff2 = sqrt(trapz(texp, (Eexp - E).^2));
+
+        % if ~isempty(opt.objScaling)
+        %     Ediff1 = Ediff1 / opt.objScaling;
+        %     Ediff2 = Ediff2 / opt.objScaling;
+        % end
+
+        % str = sprintf('Integral error %g (%g)', Ediff1, Ediff2);
+        % disp(str);
+
+        if opt.allowExtrapolation
+            rmse = l2error(expdata.time, expdata.U, ...
+                           simulationTime, simulationVoltage, ...
+                           'extrap', true);
+        else
+            % Use the retained simulation states as the comparison grid.
+            % A very short simulation can contain several states before the
+            % second experimental sample, in which case truncating the
+            % experimental grid would leave fewer than two points.
+            inExperimentalDomain = simulationTime >= expdata.time(1) & ...
+                                   simulationTime <= expdata.time(end);
+            comparisonTime = simulationTime(inExperimentalDomain);
+            comparisonVoltage = simulationVoltage(inExperimentalDomain);
+
+            if isempty(comparisonTime)
+                disp('RMSE unavailable: simulation and experiment do not overlap');
+                return
+            end
+
+            if isscalar(comparisonTime)
+                experimentalVoltage = interp1(expdata.time, expdata.U, ...
+                                              comparisonTime, 'linear');
+                rmse = abs(comparisonVoltage - experimentalVoltage);
+            else
+                rmse = l2error(comparisonTime, comparisonVoltage, ...
+                               expdata.time, expdata.U);
+            end
+        end
+        str = sprintf('RMSE %g mV', rmse/milli);
         disp(str);
 
         if opt.doplot
             % Plot
             figure; hold on, grid on
-            plot(getTime(statesExp)/hour, getE(statesExp), 'displayname', 'exp')
-            plot(getTime(states)/hour, getE(states), 'displayname', 'calibrated')
+            %plot(getTime(statesExp)/hour, getE(statesExp), 'displayname', 'exp')
+            if opt.allowExtrapolation
+                plot(expdata.time/hour, expdata.U, 'displayname', 'exp');
+            else
+                experimentalVoltage = interp1(expdata.time, expdata.U, ...
+                                              comparisonTime, 'linear');
+                plot(comparisonTime/hour, experimentalVoltage, ...
+                     'displayname', 'exp');
+            end
+            plot(simulationTime/hour, simulationVoltage, ...
+                 'displayname', 'calibrated')
             xlabel('Time  /  hour')
             ylabel('Voltage  /  V')
             legend('location', 'sw')

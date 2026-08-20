@@ -8,11 +8,22 @@ function l2 = l2error(x1, y1, x2, y2, varargin)
                  'truncate', false);
     opt = merge_options(opt, varargin{:});
 
-    % Truncate (x2, y2) to the range of x1
-    if opt.truncate && x2(end) > x1(end)
-        idx = find(x2 > x1(end), 1, 'first');
-        x2 = x2(1:idx);
-        y2 = y2(1:idx);
+    x1 = x1(:);
+    y1 = y1(:);
+    x2 = x2(:);
+    y2 = y2(:);
+
+    assert(all(diff(x1) > 0), 'x1 must be strictly increasing');
+    assert(all(diff(x2) > 0), 'x2 must be strictly increasing');
+
+    % Restrict the evaluation points to the common domain.  interp1 is
+    % applied to y2 below, so trimming x1 is what prevents extrapolation.
+    if opt.truncate
+        inCommonDomain = x1 >= x2(1) & x1 <= x2(end);
+        x1 = x1(inCommonDomain);
+        y1 = y1(inCommonDomain);
+        assert(numel(x1) >= 2, ...
+               'At least two x1 points are required in the common domain');
     end
 
     % Interpolate to x1

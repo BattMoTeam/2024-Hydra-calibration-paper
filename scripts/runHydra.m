@@ -7,6 +7,8 @@ function output = runHydra(input, varargin)
                            'numTimesteps'                  , 100  , ...
                            'lowRateParams'                 , []   , ...
                            'highRateParams'                , []   , ...
+                           'useCVswitch'                   , []   , ...
+                           'lowerCutoffVoltage'            , []   , ...
                            'useRegionBruggemanCoefficients', false, ...
                            'include_current_collectors'    , false, ...
                            'geometry'                      , '1d');
@@ -24,6 +26,7 @@ function output = runHydra(input, varargin)
     % Solver options
     opt = struct('runSimulation'  , true    , ...
                  'dopacked'       , true    , ...
+                 'outputMinisteps', true    , ...
                  'verbose'        , false   , ...
                  'clearSimulation', true    , ...
                  'outputDirectory', 'output', ...
@@ -49,6 +52,9 @@ function output = runHydra(input, varargin)
 
     % Load base json
     jsonstruct = parseBattmoJson(fullfile(getHydra0Dir(), 'parameters', 'h0b-base.json'));
+
+    jsonstruct.(ctrl).lowerCutoffVoltage=2.0;
+
 
     jsonstruct.include_current_collectors = input.include_current_collectors;
 
@@ -111,6 +117,15 @@ function output = runHydra(input, varargin)
     if not(isempty(input.highRateParams))
         jsonstruct_high_rate_params = input.highRateParams;
         jsonstruct = mergeStructs({jsonstruct_high_rate_params, jsonstruct}, 'warn', false);
+    end
+
+    % Optional control overrides are useful for calibrations that should
+    % terminate at cutoff instead of switching from CC to CV operation.
+    if not(isempty(input.useCVswitch))
+        jsonstruct.(ctrl).useCVswitch = input.useCVswitch;
+    end
+    if not(isempty(input.lowerCutoffVoltage))
+        jsonstruct.(ctrl).lowerCutoffVoltage = input.lowerCutoffVoltage;
     end
 
     if input.useRegionBruggemanCoefficients
@@ -248,9 +263,8 @@ function output = runHydra(input, varargin)
     % control = struct('src', srcfunc);
     % schedule = struct('control', control, 'step', step);
 
-    % keyboard;
     timestep = struct('totalTime', totalTime, ...
-                      'numTimesteps', input.numTimesteps, ...
+                      'numberOfTimeSteps', input.numTimesteps, ...
                       'useRampup', true, ...
                       'numberOfRampupSteps', 10);
     step    = model.Control.setupScheduleStep(timestep);
@@ -292,6 +306,8 @@ function output = runHydra(input, varargin)
 
             output.input = input;
             [~, output.states] = getPackedSimulatorOutput(output.problem);
+            output.states = truncateStatesAtCutoff( ...
+                output.states, cutoffForTruncation(model));
 
             if isempty(output.states)
                 foundresults = false;
@@ -321,17 +337,32 @@ function output = runHydra(input, varargin)
 
         if nargout > 0
             [~, output.states] = getPackedSimulatorOutput(output.problem);
+            output.states = truncateStatesAtCutoff( ...
+                output.states, cutoffForTruncation(model));
         end
 
     else
 
         [~, output.states] = simulateScheduleAD(initstate, model, schedule, ...
-                                                'OutputMinisteps', true, ...
+                                                'OutputMinisteps', opt.outputMinisteps, ...
                                                 'NonLinearSolver', nls);
+        output.states = truncateStatesAtCutoff( ...
+            output.states, cutoffForTruncation(model));
 
     end
 
     output.input = input;
+
+end
+
+function cutoffVoltage = cutoffForTruncation(model)
+
+    if isa(model.Control, 'CCDischargeControlModel') && ...
+            ~model.Control.useCVswitch
+        cutoffVoltage = model.Control.lowerCutoffVoltage;
+    else
+        cutoffVoltage = [];
+    end
 
 end
 
