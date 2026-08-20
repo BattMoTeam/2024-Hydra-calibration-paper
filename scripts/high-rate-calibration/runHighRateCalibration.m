@@ -23,6 +23,7 @@ sep   = 'Separator';
 
 doplot = true;
 debug = false;
+outputMinisteps = true;
 
 getTime = @(states) cellfun(@(s) s.time, states);
 getE = @(states) cellfun(@(s) s.(ctrl).E, states);
@@ -57,12 +58,15 @@ input0 = struct('I'                             , expdata.I, ...
                 'numTimesteps'                  , numTimesteps                  , ...
                 'lowRateParams'                 , jsonstructEC                  , ...
                 'useRegionBruggemanCoefficients', useRegionBruggemanCoefficients, ...
+                'OutputMinisteps'               , outputMinisteps               , ...
                 'include_current_collectors'    , true);
 output0 = runHydra(input0, 'clearSimulation', false);
 
 % Diagnostic: do not silently introduce ministeps for adjoint consistency
-output0.nls.timeStepSelector = SimpleTimeStepSelector();
-output0.nls.maxTimestepCuts = 0;
+if ~outputMinisteps
+    output0.nls.timeStepSelector = SimpleTimeStepSelector();
+    output0.nls.maxTimestepCuts = 0;
+end
 
 if debug
     % Check how exp and initial guess compare
@@ -77,23 +81,16 @@ end
 
 %% Setup optimization
 
-% Evaluate experimental data at simulation times (allow for
-% extrapolation since expdata.time(end) is very close to
-% output.states{end}.time)
+% Check that the experimental data covers the simulation interval (allow
+% for extrapolation at the end because the times are numerically close).
 simtimes = getTime(output0.states);
 assert(expdata.time(1) <= simtimes(1));
 assert(abs(expdata.time(end) - simtimes(end)) < 1e-11);
 
-Evals     = interp1(expdata.time, expdata.U, simtimes, 'linear', 'extrap');
-statesExp = cell(numel(output0.states), 1);
-
-for k = 1:numel(output0.states)
-    statesExp{k}.time     = simtimes(k);
-    statesExp{k}.(ctrl).E = Evals(k);
-end
-
 if debug
-    % Check that the extracted values are the same as the raw values
+    % Check the experimental values interpolated at the accepted forward
+    % timesteps.
+    statesExp = interpolateExperimentalStates(output0.states, expdata);
     figure; hold on; grid on;
     plot(expdata.time/hour, expdata.U, 'k--');
     plot(getTime(statesExp)/hour, getE(statesExp));
@@ -107,37 +104,38 @@ simulatorSetup = SimulationSetup(struct('model'          , output0.model   , ...
                                         'schedule'       , output0.schedule, ...
                                         'initstate'      , output0.initstate, ...
                                         'NonLinearSolver', output0.nls     , ...
-                                        'OutputMinisteps', false));
+                                        'OutputMinisteps', outputMinisteps));
 
 % Setup parameters to be calibrated
 HRC = HighRateCalibration(simulatorSetup, 'shortnames', shortnames);
 parameters = HRC.getParams();
 
-% Objective function
-lsq = @(simsetup, states, varargin) leastSquaresEI(simsetup, states, statesExp, varargin{:});
-v = lsq(simulatorSetup, output0.states);
-scaling = sum([v{:}]);
+% Objective function. Rebuild the experimental reference states at the
+% accepted forward times from each individual objective evaluation.
+lsq = @(simsetup, states, varargin) leastSquaresEI( ...
+    simsetup, states, interpolateExperimentalStates(states, expdata), varargin{:});
+
+X0 = getScaledParameterVector(simulatorSetup, parameters);
+scaling = evalObjectiveBattmo( ...
+    X0, lsq, simulatorSetup, parameters, ...
+    'gradientMethod', 'None', ...
+    'objScaling', 1);
+assert(isfinite(scaling) && scaling > 0, ...
+       'The initial objective scaling must be finite and positive.');
 objective = @(p, varargin) evalObjectiveBattmo(p, lsq, simulatorSetup, parameters, ...
                                                'objScaling', scaling, varargin{:});
 
 if debug
-    % The least squares function evaluated at the experimental values
-    % should be zero
-    v = lsq(simulatorSetup, statesExp);
-    assert(norm([v{:}]) == 0.0);
-
     % Compare gradients calculated using adjoints and finite
     % difference approximation
-    Xtmp = getScaledParameterVector(simulatorSetup, parameters);
     disp('Gradient comparison at initial parameters:');
-    compareAdjointAndFiniteDifferenceGradients(Xtmp, objective, HRC.shortnames);
+    compareAdjointAndFiniteDifferenceGradients(X0, objective, HRC.shortnames);
 
     %return
 end
 
 %% Run optimization
 
-X0 = getScaledParameterVector(simulatorSetup, parameters);
 v0 = objective(X0);
 
 callbackfunc = @(history, it) callbackplot(history, it, simulatorSetup, parameters, expdata, ...
@@ -146,7 +144,7 @@ callbackfunc = @(history, it) callbackplot(history, it, simulatorSetup, paramete
                                            'doplot'     , doplot);
 
 gradTol = 1e-3;
-objChangeTol = 1e-10;
+objChangeTol = -inf; %1e-10;
 maxit = 100;
 [vopt, Xopt, history] = unitBoxBFGS(X0, objective, ...
                                     'gradTol'         , gradTol     , ...
@@ -196,13 +194,27 @@ inputOpt = struct('I'                             , expdata.I                   
                   'lowRateParams'                 , jsonstructEC                  , ...
                   'highRateParams'                , jsonstructHRC                 , ...
                   'useRegionBruggemanCoefficients', useRegionBruggemanCoefficients, ...
+                  'OutputMinisteps'               , outputMinisteps               , ...
                   'include_current_collectors'    , true);
 outputOpt = runHydra(inputOpt, 'clearSimulation', false);
 
 assert(outputOpt.model.Electrolyte.bgfactor == setupOpt.model.Electrolyte.bgfactor);
 
 %% Quantify differences
-vfinal = lsq(simulatorSetup, outputOpt.states);
+finalSetup = simulatorSetup;
+finalSetup.model = outputOpt.model;
+finalSetup.initstate = outputOpt.initstate;
+finalSetup.schedule = outputOpt.schedule;
+
+if outputMinisteps
+    finalSetup.schedule = convertReportToSchedule( ...
+        outputOpt.reports, outputOpt.schedule);
+    assert(numel(outputOpt.states) == numel(finalSetup.schedule.step.val), ...
+           ['The number of accepted final states does not match ', ...
+            'the number of timesteps in the final schedule.']);
+end
+
+vfinal = lsq(finalSetup, outputOpt.states);
 
 expdataUinterp1 = @(t) interp1(expdata.time, expdata.U, t, 'linear', 'extrap');
 RMSE = l2error(getTime(outputOpt.states), getE(outputOpt.states), expdata.time, expdata.U, 'extrap', true);
