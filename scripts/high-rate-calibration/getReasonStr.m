@@ -9,7 +9,8 @@ function [reasonStr, tbl] = getReasonStr(history, colname)
         warning('Only one iteration in callOptimizer');
         valstr = sprintf('Value is %g\n', history.val(end));
         valdiffstr = 'No value diff\n';
-        pgstr = sprintf('Gradient value is %g\n', history.pg(end));
+        pgstr = sprintf('Pg value is %g\n', history.pg(end));
+        pgdiffstr = 'No pg diff\n';
 
     elseif numel(history.val) == 2
 
@@ -17,14 +18,16 @@ function [reasonStr, tbl] = getReasonStr(history, colname)
         diffop = @(v, offset) abs(v(end)-v(end-1));
         valstr = sprintf('Value is %g\n', history.val(end));
         valdiffstr = sprintf('Value diff is %g\n', diffop(history.val, 0));
-        pgstr = sprintf('Gradient diff is %g\n', diffop(history.pg, 0));
+        pgstr = sprintf('Pg value is %g\n', history.pg(end));
+        pgdiffstr = sprintf('Pg diff is %g\n', diffop(history.pg, 0));
 
     else
 
         diffop = @(v, offset) abs(v(end-offset)-v(end-offset-1));
-        valstr = sprintf('Value is %g\n', history.val(end));
+        valstr = sprintf('Values (prev last %g) %g\n', history.val(end-1), history.val(end));
         valdiffstr = sprintf('Value diffs (prev last %g) %g\n', diffop(history.val, 1), diffop(history.val, 0));
-        pgstr = sprintf('Gradient diffs (prev last %g) %g\n', diffop(history.pg, 1), diffop(history.pg, 0));
+        pgstr = sprintf('Pg values (prev last %g) %g\n', history.pg(end-1), history.pg(end));
+        pgdiffstr = sprintf('Pg diffs (prev last %g) %g\n', diffop(history.pg, 1), diffop(history.pg, 0));
 
     end
 
@@ -32,6 +35,7 @@ function [reasonStr, tbl] = getReasonStr(history, colname)
                  valstr, ...
                  valdiffstr, ...
                  pgstr, ...
+                 pgdiffstr, ...
                  sprintf('number of iterations %g\n', numel(history.val))];
 
     rows = {'Obj value (end)'; 'Obj value diff (end-1:end)'; 'Pg (end)'; 'Pg diff (end-1:end)'; 'Num iterations'};
