@@ -1,4 +1,5 @@
-function callbackplot(history, it, simulatorSetup, parameters, statesExp, varargin)
+function callbackplot(history, it, simulatorSetup, parameters, expdata, varargin)
+%    function callbackplot(history, it, simulatorSetup, parameters, statesExp, varargin)
 
     opt = struct('plotEveryIt', 1, ...
                  'nonLinearSolver', [], ...
@@ -41,8 +42,11 @@ function callbackplot(history, it, simulatorSetup, parameters, statesExp, vararg
         X = history.u{end};
         setup = updateSetupFromScaledParameters(simulatorSetup, parameters, X);
 
+        directory = fullfile(getHydra0Dir(), 'output');
         dataFolder = md5sum(setup.model);
         problem = packSimulationProblem(setup.initstate, setup.model, setup.schedule, dataFolder, ...
+                                        'Directory', directory, ...
+                                        'Name', dataFolder, ...
                                         'NonLinearSolver', opt.nonLinearSolver);
         clearPackedSimulatorOutput(problem, 'Prompt', false);
         simulatePackedProblem(problem);
@@ -52,28 +56,33 @@ function callbackplot(history, it, simulatorSetup, parameters, statesExp, vararg
         getTime = @(states) cellfun(@(state) state.time, states);
         getE = @(states) cellfun(@(state) state.Control.E, states);
 
-        texp = getTime(statesExp);
-        t    = getTime(states);
-        assert(norm(texp-t, 'inf') < 1e-11);
+        % texp = getTime(statesExp);
+        % t    = getTime(states);
+        % assert(norm(texp-t, 'inf') < 1e-11);
 
-        Eexp = getE(statesExp);
-        E    = getE(states);
+        % Eexp = getE(statesExp);
+        % E    = getE(states);
 
-        Ediff1 = trapz(texp, abs(Eexp - E));
-        Ediff2 = sqrt(trapz(texp, (Eexp - E).^2));
+        % Ediff1 = trapz(texp, abs(Eexp - E));
+        % Ediff2 = sqrt(trapz(texp, (Eexp - E).^2));
 
-        if ~isempty(opt.objScaling)
-            Ediff1 = Ediff1 / opt.objScaling;
-            Ediff2 = Ediff2 / opt.objScaling;
-        end
+        % if ~isempty(opt.objScaling)
+        %     Ediff1 = Ediff1 / opt.objScaling;
+        %     Ediff2 = Ediff2 / opt.objScaling;
+        % end
 
-        str = sprintf('Integral error %g (%g)', Ediff1, Ediff2);
+        % str = sprintf('Integral error %g (%g)', Ediff1, Ediff2);
+        % disp(str);
+
+        rmse = l2error(expdata.time, expdata.U, getTime(states), getE(states), 'extrap', true);
+        str = sprintf('RMSE %g mV', rmse/milli);
         disp(str);
 
         if opt.doplot
             % Plot
             figure; hold on, grid on
-            plot(getTime(statesExp)/hour, getE(statesExp), 'displayname', 'exp')
+            %plot(getTime(statesExp)/hour, getE(statesExp), 'displayname', 'exp')
+            plot(expdata.time/hour, expdata.U, 'displayname', 'exp');
             plot(getTime(states)/hour, getE(states), 'displayname', 'calibrated')
             xlabel('Time  /  hour')
             ylabel('Voltage  /  V')
