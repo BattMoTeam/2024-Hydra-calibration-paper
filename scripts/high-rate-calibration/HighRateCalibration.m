@@ -335,9 +335,8 @@ function model = setElyteBgfactor(model, value)
 
     assert(~model.use_thermal);
 
-    elyte = 'Electrolyte';
-    model.(elyte).bgfactor = value;
-    model = updateElyteBruggemanCoefficient(model);
+    model.Electrolyte.bgfactor = value;
+    % model = updateElyteBruggemanCoefficient(model);
 
 end
 
@@ -352,12 +351,17 @@ function model = updateElyteBruggemanCoefficient(model)
     numberOfCells = model.(elyte).G.getNumberOfCells();
     tags = model.(elyte).regionTags;
     regionValues = model.(elyte).regionBruggemanCoefficients;
-    bgfactor = model.(elyte).bgfactor;
+    % bgfactor = model.(elyte).bgfactor;
+
+    % bg = zeros(numberOfCells, 1);
+    % bg = subsetPlus(bg, bgfactor .* regionValues.(ne), tags == 1);
+    % bg = subsetPlus(bg, bgfactor .* regionValues.(pe), tags == 2);
+    % bg = subsetPlus(bg, bgfactor .* regionValues.(sep), tags == 3);
 
     bg = zeros(numberOfCells, 1);
-    bg = subsetPlus(bg, bgfactor .* regionValues.(ne), tags == 1);
-    bg = subsetPlus(bg, bgfactor .* regionValues.(pe), tags == 2);
-    bg = subsetPlus(bg, bgfactor .* regionValues.(sep), tags == 3);
+    bg = subsetPlus(bg, regionValues.(ne), tags == 1);
+    bg = subsetPlus(bg, regionValues.(pe), tags == 2);
+    bg = subsetPlus(bg, regionValues.(sep), tags == 3);
 
     model.(elyte).bruggemanCoefficient = bg;
 
