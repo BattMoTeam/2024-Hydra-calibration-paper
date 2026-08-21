@@ -52,55 +52,6 @@ function output = runHydra(input, varargin)
 
     jsonstruct.include_current_collectors = input.include_current_collectors;
 
-    % % Use experimental diffusion if requested
-    % if input.useExpDiffusion
-    %     assert(isempty(input.highRateParams), ...
-    %            'Should not use experimental diffusion and high rate params simultaneously');
-
-    %     eldes = {ne, pe};
-    %     for ielde = 1:numel(eldes)
-    %         elde = eldes{ielde};
-
-    %         % Remove existing diffusion params
-    %         assert(isfield(jsonstruct.(elde).(co).(am).(sd), 'referenceDiffusionCoefficient'), ...
-    %                'Expected diffusion parameters to be present in the base json');
-    %         jsonstruct.(elde).(co).(am).(sd) = rmfield(jsonstruct.(elde).(co).(am).(sd), 'referenceDiffusionCoefficient');
-
-    %         % Add experimental diffusion params
-    %         switch elde
-    %           case ne
-    %             functionname = 'computeDanodeH0b';
-    %           case pe
-    %             functionname = 'computeDcathodeH0b';
-    %           otherwise
-    %             error('Unexpected electrode %s', elde);
-    %         end
-    %         jsonstruct_diffusion = struct('type', 'function', ...
-    %                                       'functionname', functionname, ...
-    %                                       'argumentlist', 'soc');
-    %         jsonstruct.(elde).(co).(am).(sd).diffusionCoefficient = jsonstruct_diffusion;
-    %     end
-    % end
-
-    % % Set input diffusion
-    % if not(isempty(input.Dne))
-    %     jsonstruct.(ne).(co).(am).(sd).referenceDiffusionCoefficient = input.Dne;
-    % end
-    % if not(isempty(input.Dpe))
-    %     jsonstruct.(pe).(co).(am).(sd).referenceDiffusionCoefficient = input.Dpe;
-    % end
-
-    % % Set input Bruggeman coefficients
-    % if not(isempty(input.ne_bman))
-    %     jsonstruct.(ne).(co).bruggemanCoefficient = input.ne_bman;
-    % end
-    % if not(isempty(input.pe_bman))
-    %     jsonstruct.(pe).(co).bruggemanCoefficient = input.pe_bman;
-    % end
-    % if not(isempty(input.sep_bman))
-    %     jsonstruct.(sep).bruggemanCoefficient = input.sep_bman;
-    % end
-
     % Set low rate params
     if not(isempty(input.lowRateParams))
         jsonstruct_low_rate_params = input.lowRateParams;
@@ -115,20 +66,6 @@ function output = runHydra(input, varargin)
 
     if input.useRegionBruggemanCoefficients
         jsonstruct.(elyte).useRegionBruggemanCoefficients = true;
-
-        %     % Set if not already set (via jsonstructHRC)
-        %     if ~isfield(jsonstruct.(elyte), rbc)
-        %         jsonstruct.(elyte).regionBruggemanCoefficients = struct();
-        %     end
-        %     if ~isfield(jsonstruct.(elyte).(rbc), ne)
-        %         jsonstruct.(elyte).regionBruggemanCoefficients.(ne) = 1.5;
-        %     end
-        %     if ~isfield(jsonstruct.(elyte).(rbc), pe)
-        %         jsonstruct.(elyte).regionBruggemanCoefficients.(pe) = 1.5;
-        %     end
-        %     if ~isfield(jsonstruct.(elyte).(rbc), sep)
-        %         jsonstruct.(elyte).regionBruggemanCoefficients.(sep) = 1.5;
-        %     end
 
         bgFromTau = @(poro, tau) -log(tau) / log(poro);
 
@@ -237,16 +174,6 @@ function output = runHydra(input, varargin)
     else
         totalTime = input.totalTime;
     end
-
-    % dt = totalTime / input.numTimesteps;
-    % dt = rampupTimesteps(totalTime, dt, 10, 'threshold_error', 1e-8);
-    % step = struct('val', dt, 'control', ones(numel(dt), 1));
-
-    % tup = 1*minute;
-    % cutOffVoltage = model.(ctrl).lowerCutoffVoltage;
-    % srcfunc = @(t, I, E, Imax) rampupSwitchControl(t, tup, I, E, model.(ctrl).Imax, cutOffVoltage);
-    % control = struct('src', srcfunc);
-    % schedule = struct('control', control, 'step', step);
 
     timestep = struct('totalTime', totalTime, ...
                       'numberOfTimeSteps', input.numTimesteps, ...
