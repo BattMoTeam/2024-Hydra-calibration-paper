@@ -120,6 +120,13 @@ scaling = sum([v{:}]);
 objective = @(p, varargin) evalObjectiveBattmo(p, lsq, simulatorSetup, parameters, ...
                                                'objScaling', scaling, varargin{:});
 
+% Compute and classify sensitivities at the initial parameter values.
+X0 = getScaledParameterVector(simulatorSetup, parameters);
+initialParameterValues = cellfun( ...
+    @(parameter) parameter.getParameterValue(simulatorSetup), parameters);
+sensitivityReport = computeSensitivities( ...
+    X0, objective, HRC.shortnames, scaling);
+
 if debug
     % The least squares function evaluated at the experimental values
     % should be zero
@@ -128,17 +135,15 @@ if debug
 
     % Compare gradients calculated using adjoints and finite
     % difference approximation
-    Xtmp = getScaledParameterVector(simulatorSetup, parameters);
     disp('Gradient comparison at initial parameters:');
-    compareAdjointAndFiniteDifferenceGradients(Xtmp, objective, HRC.shortnames);
+    compareAdjointAndFiniteDifferenceGradients(X0, objective, HRC.shortnames);
 
     %return
 end
 
 %% Run optimization
 
-X0 = getScaledParameterVector(simulatorSetup, parameters);
-v0 = objective(X0);
+v0 = sensitivityReport.objectiveValue;
 
 callbackfunc = @(history, it) callbackplot(history, it, simulatorSetup, parameters, expdata, ...
                                            'plotEveryIt', 10     , ...
@@ -288,6 +293,16 @@ fprintf('Initial diffusion Dne=%g volumetricsurfacearea=%g\n', ...
         Dne, jsonstructHRC.(ne).(co).(am).(itf).volumetricSurfaceArea);
 fprintf('RMSE %g mV\n', RMSE/milli);
 disp(reasonStr)
+
+finalParameterValues = cellfun( ...
+    @(parameter) parameter.getParameterValue(setupOpt), parameters);
+sensitivitySummary = table( ...
+    HRC.shortnames(:), initialParameterValues(:), finalParameterValues(:), ...
+    sensitivityReport.initialGroup(:), ...
+    'VariableNames', ...
+    {'Shortname', 'InitialValue', 'FinalValue', 'InitialGroup'});
+fprintf('\nInitial sensitivity classification and calibration results:\n');
+disp(sensitivitySummary);
 
 diary off;
 
