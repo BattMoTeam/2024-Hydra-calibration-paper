@@ -256,32 +256,57 @@ fprintf('RMSE after calibration: %g mV\n', RMSE/milli);
 disp('Results HRC');
 printer(jsonstructHRC);
 
-% Postprocess: Report effective electrode conductivities and
-% electrolyte tortuosities
-regionTags = outputOpt.model.(elyte).regionTags;
-vfs = struct();
-vfs.(ne)  = unique(outputOpt.model.(elyte).volumeFraction(regionTags == 1));
-vfs.(pe)  = unique(outputOpt.model.(elyte).volumeFraction(regionTags == 2));
-vfs.(sep) = unique(outputOpt.model.(elyte).volumeFraction(regionTags == 3));
-assert(isscalar(vfs.(ne)));
-assert(isscalar(vfs.(pe)));
-assert(isscalar(vfs.(sep)));
+% Print tortuosities using bgfactor: we have eff cond = bgfactor *
+% cond * poro^bman = cond * poro^(bman*lg(bgfactor)) = cond *
+% poro^(eff bman). From this we can calculate the tortuosities as tau
+% = poro^-bman.
 
-if useRegionBruggemanCoefficients
-    effectiveRegionBruggeman = outputOpt.model.(elyte).regionBruggemanCoefficients;
-else
-    bg = outputOpt.model.(elyte).bruggemanCoefficient;
-    assert(isscalar(bg));
-    effectiveRegionBruggeman = struct(ne, bg, pe, bg, sep, bg);
-end
+model = outputOpt.model;
+rbc = model.(elyte).regionBruggemanCoefficients;
+bgfactor = model.(elyte).bgfactor;
+effbman = @(poro, bman) bman * log(bgfactor) / log(poro);
+effbmen = struct();
+effbmen.(ne) = effbman(1-model.(ne).(co).volumeFraction, rbc.(ne));
+effbmen.(pe) = effbman(1-model.(pe).(co).volumeFraction, rbc.(pe));
+effbmen.(sep) = effbman(model.(sep).porosity, rbc.(sep));
+disp('Pseudo Bruggeman coefficients:');
+printer(effbmen);
 
-tortuosityParams = struct();
-tortuosityParams.(elyte).regionBruggemanCoefficients = effectiveRegionBruggeman;
-tau = calculateTortuosityFromBruggeman(vfs, tortuosityParams);
-disp('Effective electrolyte region Bruggeman coefficients:');
-printer(effectiveRegionBruggeman);
-disp('Tortuosities:');
+% Convert to tortuosities
+tortuosity = @(vf, bman) vf.^(-bman);
+tau = struct();
+tau.(ne) = tortuosity(1-model.(ne).(co).volumeFraction, effbmen.(ne));
+tau.(pe) = tortuosity(1-model.(pe).(co).volumeFraction, effbmen.(pe));
+tau.(sep) = tortuosity(model.(sep).porosity, effbmen.(sep));
+disp('Derived tortuosities');
 printer(tau);
+
+% % Postprocess: Report effective electrode conductivities and
+% % electrolyte tortuosities
+% regionTags = outputOpt.model.(elyte).regionTags;
+% vfs = struct();
+% vfs.(ne)  = unique(outputOpt.model.(elyte).volumeFraction(regionTags == 1));
+% vfs.(pe)  = unique(outputOpt.model.(elyte).volumeFraction(regionTags == 2));
+% vfs.(sep) = unique(outputOpt.model.(elyte).volumeFraction(regionTags == 3));
+% assert(isscalar(vfs.(ne)));
+% assert(isscalar(vfs.(pe)));
+% assert(isscalar(vfs.(sep)));
+
+% if useRegionBruggemanCoefficients
+%     effectiveRegionBruggeman = outputOpt.rbc;
+% else
+%     bg = outputOpt.model.(elyte).bruggemanCoefficient;
+%     assert(isscalar(bg));
+%     effectiveRegionBruggeman = struct(ne, bg, pe, bg, sep, bg);
+% end
+
+% tortuosityParams = struct();
+% tortuosityParams.(elyte).regionBruggemanCoefficients = effectiveRegionBruggeman;
+% tau = calculateTortuosityFromBruggeman(vfs, tortuosityParams);
+% disp('Effective electrolyte region Bruggeman coefficients:');
+% printer(effectiveRegionBruggeman);
+% disp('Tortuosities:');
+% printer(tau);
 
 effCond = struct(pe, outputOpt.model.(pe).(co).effectiveElectronicConductivity, ...
                  ne, outputOpt.model.(ne).(co).effectiveElectronicConductivity);
@@ -294,6 +319,7 @@ fprintf('Initial diffusion Dne=%g volumetricsurfacearea=%g\n', ...
 fprintf('RMSE %g mV\n', RMSE/milli);
 disp(reasonStr)
 
+% Print initial and final vals, plus sensitivities
 finalParameterValues = cellfun( ...
     @(parameter) parameter.getParameterValue(setupOpt), parameters);
 sensitivitySummary = table( ...
