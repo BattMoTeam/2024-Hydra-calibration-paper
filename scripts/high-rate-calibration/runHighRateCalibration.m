@@ -60,7 +60,7 @@ input0 = struct('I'                             , expdata.I, ...
                 'include_current_collectors'    , true);
 output0 = runHydra(input0, 'clearSimulation', false);
 
-% Diagnostic: do not silently introduce ministeps for adjoint consistency
+% Avoid adaptive time stepping to ensure adjoint consistency
 output0.nls.timeStepSelector = SimpleTimeStepSelector();
 output0.nls.maxTimestepCuts = 0;
 
@@ -171,7 +171,7 @@ disp(reasonStr);
 if debug && numel(history.val) >= 2 && ...
         abs(history.val(end) - history.val(end-1)) < objChangeTol
 
-    %% Calculate fd and adjoint gradients at final point
+    % Calculate fd and adjoint gradients at final point
     disp('Gradient comparison at optimized parameters:');
     compareAdjointAndFiniteDifferenceGradients(Xopt, objective, HRC.shortnames);
 end
@@ -202,6 +202,7 @@ outputOpt = runHydra(inputOpt, 'clearSimulation', false);
 assert(outputOpt.model.Electrolyte.bgfactor == setupOpt.model.Electrolyte.bgfactor);
 
 %% Quantify differences
+
 vfinal = lsq(simulatorSetup, outputOpt.states);
 
 expdataUinterp1 = @(t) interp1(expdata.time, expdata.U, t, 'linear', 'extrap');
@@ -220,6 +221,7 @@ if doplot
 end
 
 %% Plot
+
 if doplot
     colors = lines(2);
     fig = figure('Units', 'inches', 'Position', [0.1, 0.1, 8, 6]);
@@ -240,8 +242,9 @@ if doplot
 end
 
 %% Quantify difference between experiment and calibrated
+
 RMSE = l2error(getTime(outputOpt.states), getE(outputOpt.states), expdata.time, expdata.U, 'extrap', true);
-fprintf('wL2 error after calibration: %g mV\n', RMSE/milli);
+fprintf('RMSE after calibration: %g mV\n', RMSE/milli);
 
 %% Print
 
