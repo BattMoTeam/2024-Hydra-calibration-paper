@@ -29,6 +29,16 @@ function startup()
 
     mrstModule add ad-core optimization mpfa
 
+    reset(groot);
+    set(groot, 'defaultlinelinewidth', 2)
+    set(groot, 'defaulttextfontsize', 12);
+    set(groot, 'defaultaxesfontsize', 12);
+    set(groot, 'DefaultAxesTitleFontSizeMultiplier',1.2)
+    set(groot, 'DefaultFigurePosition', [100, 100, 600, 400]);
+    set(groot, 'DefaultFigureWindowStyle', 'docked')
+
+    datetime.setDefaultFormats('default','yyyy-MM-dd HH:mm:ss');
+
     fprintf('\nCurrent directory: %s\n', pwd());
     fprintf('Current BattMo path: %s\n', battmo);
     fprintf('Current BattMo branch: %s (%s)\n\n', gitBranch, gitHash);
