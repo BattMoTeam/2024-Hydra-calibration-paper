@@ -4,8 +4,18 @@ clearvars
 close all
 
 scriptDirectory = fileparts(mfilename('fullpath'));
-logFilename = fullfile(scriptDirectory, ...
-    '_diary-runHighRateCalibration-20260821-103811.txt');
+
+hostname = char(java.net.InetAddress.getLocalHost().getHostName());
+switch hostname
+  case 'jpii'
+    fn = '_diary-runHighRateCalibration-20260821-103811.txt';
+  case 'mly'
+    fn = '_diary-runHighRateCalibration-20260820-232402.txt';
+  otherwise
+    error();
+end
+logFilename = fullfile(scriptDirectory, fn);
+
 
 assert(isfile(logFilename), 'Calibration log not found: %s', logFilename);
 logText = fileread(logFilename);
