@@ -23,6 +23,8 @@ sep   = 'Separator';
 
 doplot = true;
 debug = false;
+gradientCheckStepSizes = [1e-1, 1e-2, 1e-3, 1e-4, ...
+                          1e-5, 1e-6, 1e-7];
 
 getTime = @(states) cellfun(@(s) s.time, states);
 getE = @(states) cellfun(@(s) s.(ctrl).E, states);
@@ -136,7 +138,9 @@ if debug
     % Compare gradients calculated using adjoints and finite
     % difference approximation
     disp('Gradient comparison at initial parameters:');
-    compareAdjointAndFiniteDifferenceGradients(X0, objective, HRC.shortnames);
+    compareAdjointAndFiniteDifferenceGradients( ...
+        X0, objective, HRC.shortnames, ...
+        'PerturbationSize', gradientCheckStepSizes);
 
     %return
 end
@@ -178,7 +182,9 @@ if debug && numel(history.val) >= 2 && ...
 
     % Calculate fd and adjoint gradients at final point
     disp('Gradient comparison at optimized parameters:');
-    compareAdjointAndFiniteDifferenceGradients(Xopt, objective, HRC.shortnames);
+    compareAdjointAndFiniteDifferenceGradients( ...
+        Xopt, objective, HRC.shortnames, ...
+        'PerturbationSize', gradientCheckStepSizes);
 end
 
 %% Extract parameters
