@@ -132,8 +132,6 @@ classdef EquilibriumSensitivityParameter < ModelParameter
             volumeFraction = value ./ amountPerVolumeFraction;
 
             coating.volumeFraction = volumeFraction;
-            coating.(am).volumeFraction = ...
-                volumeFraction .* activeMaterialFraction;
             coating.(am).(sd).volumeFraction = ...
                 volumeFraction .* activeMaterialFraction;
             model.(electrode).(co) = coating;
