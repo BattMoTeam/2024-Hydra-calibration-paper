@@ -140,9 +140,10 @@ if debug
     disp('Gradient comparison at initial parameters:');
     compareAdjointAndFiniteDifferenceGradients( ...
         X0, objective, HRC.shortnames, ...
-        'PerturbationSize', gradientCheckStepSizes);
+        'PerturbationSize', gradientCheckStepSizes, ...
+        'doplot', true);
 
-    %return
+    return
 end
 
 %% Run optimization

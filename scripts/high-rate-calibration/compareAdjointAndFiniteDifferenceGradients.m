@@ -5,14 +5,19 @@ function [tbl, comparison] = compareAdjointAndFiniteDifferenceGradients( ...
 % PerturbationSize may be a positive scalar or vector and defaults to
 % 1e-5. A vector requests one finite-difference comparison per step size.
 % adjointGradient may be supplied to avoid recomputing the adjoint.
-% DifferenceScheme may be 'central' (default) or 'forward'. Central
+% DifferenceScheme may be 'forward' (default) or 'central'. Central
 % differences fall back to a feasible one-sided difference at a bound.
+% doplot controls whether the gradient comparison is plotted and defaults
+% to false.
 
     opt = struct( ...
         'PerturbationSize', 1e-5, ...
         'adjointGradient', [], ...
-        'DifferenceScheme', 'central');
+        'DifferenceScheme', 'forward', ...
+        'doplot', false);
     opt = merge_options(opt, varargin{:});
+
+    validateattributes(opt.doplot, {'logical'}, {'scalar'}, mfilename, 'doplot');
 
     differenceScheme = validatestring( ...
         opt.DifferenceScheme, {'central', 'forward'}, ...
@@ -133,7 +138,38 @@ function [tbl, comparison] = compareAdjointAndFiniteDifferenceGradients( ...
         'requestedScheme', differenceScheme, ...
         'relativeTolerance', relativeTolerance);
 
+    if opt.doplot
+        plotGradientComparison( ...
+            perturbationSizes, finiteDifferenceGradient, gad, shortnames);
+    end
+
     disp(tbl);
+
+end
+
+
+function plotGradientComparison(perturbationSizes, finiteDifferenceGradient, ...
+                                adjointGradient, shortnames)
+
+    fig = figure('Name', 'Adjoint and finite-difference gradients');
+    layout = tiledlayout(fig, 'flow');
+    title(layout, 'Adjoint and finite-difference gradients');
+
+    for iparam = 1:numel(shortnames)
+        ax = nexttile(layout);
+        fdLine = semilogx( ...
+            ax, perturbationSizes, finiteDifferenceGradient(iparam, :), ...
+            'o--', 'LineWidth', 1.5, 'DisplayName', 'Finite difference');
+        hold(ax, 'on');
+        adjointLine = yline( ...
+            ax, adjointGradient(iparam), 'k-', ...
+            'LineWidth', 1.5, 'DisplayName', 'Adjoint');
+        grid(ax, 'on');
+        xlabel(ax, 'Perturbation size');
+        ylabel(ax, 'Gradient');
+        title(ax, shortnames{iparam}, 'Interpreter', 'none');
+        legend(ax, [fdLine, adjointLine], 'Location', 'best');
+    end
 
 end
 
