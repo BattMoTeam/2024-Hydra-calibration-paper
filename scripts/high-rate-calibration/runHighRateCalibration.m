@@ -266,44 +266,44 @@ fprintf('RMSE after calibration: %g mV\n', RMSE/milli);
 if hessian
 
     % history.hess contains the inverse
-    inverseHessianScaled = history.hess{end}; % full?
-  numberOfParameters = numel(Xopt);
+    inverseHessianScaled = history.hess{end};
+    numberOfParameters = numel(Xopt);
 
-  inverseHessianScaled = 0.5 .* (inverseHessianScaled + inverseHessianScaled');
+    inverseHessianScaled = 0.5 .* (inverseHessianScaled + inverseHessianScaled');
+    hessianScaled = inverseHessianScaled \ eye(numberOfParameters);
 
-  if rcond(inverseHessianScaled) > 1e-12
-      hessianScaled = inverseHessianScaled \ eye(numberOfParameters);
-  else
-      hessianScaled = pinv(inverseHessianScaled);
-  end
+    % This is the hessian wrt unit-box coords and for the scaled objective
+    hessianScaled = 0.5 .* (hessianScaled + hessianScaled');
 
-  % This is the hessian wrt unit-box coords and for the scaled objective
-  hessianScaled = 0.5 .* (hessianScaled + hessianScaled');
+    % Curvature and parameter modes
+    [eigenvecs0, eigenvals0] = eig(hessianScaled, 'vector');
+    [eigenvals, order] = sort(eigenvals0, 'descend');
+    eigenvecs = eigenvecs0(:, order);
 
-  % Diagnose:
-  keyboard;
+    eigtbl0 = table(eigenvals0, 'VariableNames', {'Eigenvalue'}, 'RowNames', shortnames);
+    eigtbl = table(eigenvals, 'VariableNames', {'Eigenvalue'}, 'RowNames', shortnames(order));
+    disp(eigtbl);
 
-  % Curvature and parameter modes
-  [eigenvectors, eigenvals] = eig(hessianScaled, 'vector');
-  [eigenvals, order] = sort(eigenvals, 'descend');
-  eigenvectors = eigenvectors(:, order);
+    for k = 1:numberOfParameters
+        fprintf('%s\n', shortnames{order(k)});
+        fprintf('Eigenvalue %d: %g\n', k, eigenvals(k));
+        fprintf('Eigenvector %d: ', k);
+        fprintf('%g ', eigenvecs(:, k));
+        fprintf('\n');
+    end
 
-  % Conditioning and numerical rank
-  [U, singularVals, V] = svd(hessianScaled, 'econ');
-  singularVals = diag(singularVals);
+    % Conditioning and numerical rank
+    [U, singularvals, V] = svd(hessianScaled, 'econ');
+    singularvals = diag(singularvals);
 
-  relativeTolerance = 1e-10;
-  rankTolerance = relativeTolerance * singularVals(1);
-  numericalRank = nnz(singularVals > rankTolerance);
-  conditionNumber = singularVals(1) / singularVals(end);
+    relativeTolerance = 1e-10;
+    rankTolerance = relativeTolerance * singularvals(1);
+    numericalRank = nnz(singularvals > rankTolerance);
+    conditionNumber = singularvals(1) / singularvals(end);
 
-  fprintf('Numerical rank: %d/%d\n', numericalRank, numel(Xopt));
-  fprintf('SVD condition number: %.3e\n', conditionNumber);
-  fprintf('Negative eigenvals: %d\n', nnz(eigenvals < -rankTolerance));
-  % - eig identifies positive, flat, and negative curvature directions.
-  % - svd identifies weakly observable or nearly dependent parameter combinations.
-  % - For a symmetric positive-definite Hessian, U, V, and the eigenvectors describe essentially the same modes.
-  % - For an indefinite Hessian, SVD alone is misleading because a large negative eigenvalue appears as a large positive singular value.
+    fprintf('Numerical rank: %d/%d\n', numericalRank, numel(Xopt));
+    fprintf('SVD condition number: %.3e\n', conditionNumber);
+    fprintf('Negative eigenvals: %d\n', nnz(eigenvals < -rankTolerance));
 
 
 end
