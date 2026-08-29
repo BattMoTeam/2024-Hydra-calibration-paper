@@ -48,7 +48,11 @@ expdata = struct('time', dataraw.time{k} * hour, ...
 filename     = fullfile(getHydra0Dir(), 'parameters', 'equilibrium-calibration-parameters.json');
 jsonstructEC = parseBattmoJson(filename);
 
-shortnames = {'ne_vsa', 'pe_vsa', 'ne_D', 'pe_D', 'elyte_bgfactor'};
+%shortnames = {'ne_vsa', 'pe_vsa', 'ne_bg', 'pe_bg', 'ne_D', 'pe_D', 'elyte_bgfactorKappa', 'elyte_bgfactorD'};
+% Use 'elyte_bgfactor' instead of the two specific factors to calibrate one shared factor.
+% shortnames = {'ne_vsa', 'pe_vsa', 'ne_D', 'pe_D', 'elyte_bgfactorKappa', 'elyte_bgfactorD'};
+% shortnames = {'pe_vsa', 'ne_D', 'pe_D', 'elyte_bgfactor'};
+shortnames = {'pe_vsa', 'ne_D', 'pe_D', 'elyte_bgfactorKappa', 'elyte_bgfactorD'};
 disp('shortnames:');
 printer(shortnames);
 useRegionBruggemanCoefficients = any(contains(shortnames, 'elyte_bg'));
@@ -133,6 +137,7 @@ senstbl = table(HRC.shortnames(:), abs(sensitivityReport.sensitivities), sensiti
 [~, sortIdx] = sort(abs(sensitivityReport.sensitivities), 'descend');
 senstbl = senstbl(sortIdx, :);
 disp(senstbl);
+% return
 
 if debug
     % The least squares function evaluated at the experimental values
@@ -218,7 +223,15 @@ inputOpt = struct('I'                             , expdata.I                   
                   'include_current_collectors'    , true);
 outputOpt = runHydra(inputOpt, 'clearSimulation', false);
 
-assert(outputOpt.model.Electrolyte.bgfactor == setupOpt.model.Electrolyte.bgfactor);
+bgfactorShortnames = {'elyte_bgfactor', 'elyte_bgfactorKappa', 'elyte_bgfactorD'};
+bgfactorFields = {'bgfactor', 'bgfactorKappa', 'bgfactorD'};
+for k = 1:numel(bgfactorShortnames)
+    if any(strcmp(shortnames, bgfactorShortnames{k}))
+        fieldname = bgfactorFields{k};
+        assert(outputOpt.model.Electrolyte.(fieldname) == ...
+               setupOpt.model.Electrolyte.(fieldname));
+    end
+end
 
 %% Quantify differences
 

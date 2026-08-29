@@ -1,29 +1,27 @@
 {
-  "NegativeElectrode": {
-    "Coating": {
-      "ActiveMaterial": {
-        "Interface": {
-          "volumetricSurfaceArea": 55538.444989725635
-        },
-        "SolidDiffusion": {
-          "referenceDiffusionCoefficient": 1.5065798952581663E-13
-        }
-      }
-    }
-  },
   "PositiveElectrode": {
     "Coating": {
       "ActiveMaterial": {
         "Interface": {
-          "volumetricSurfaceArea": 872267.21742058487
+          "volumetricSurfaceArea": 562640.32048157731
         },
         "SolidDiffusion": {
-          "referenceDiffusionCoefficient": 3.3703785960224261E-14
+          "referenceDiffusionCoefficient": 3.3423788794359743E-14
+        }
+      }
+    }
+  },
+  "NegativeElectrode": {
+    "Coating": {
+      "ActiveMaterial": {
+        "SolidDiffusion": {
+          "referenceDiffusionCoefficient": 1.3581853717417317E-13
         }
       }
     }
   },
   "Electrolyte": {
-    "bgfactor": 0.35636394402897664
+    "bgfactorKappa": 0.079909938100684086,
+    "bgfactorD": 3.6041363785676097
   }
 }
