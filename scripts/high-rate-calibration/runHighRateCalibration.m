@@ -51,7 +51,7 @@ jsonstructEC = parseBattmoJson(filename);
 shortnames = {'ne_vsa', 'pe_vsa', 'ne_D', 'pe_D', 'elyte_bgfactor'};
 disp('shortnames:');
 printer(shortnames);
-useRegionBruggemanCoefficients = any(strcmp(shortnames, 'elyte_bgfactor'));
+useRegionBruggemanCoefficients = any(contains(shortnames, 'elyte_bg'));
 
 numTimesteps = 100; % 400
 
@@ -125,10 +125,14 @@ objective = @(p, varargin) evalObjectiveBattmo(p, lsq, simulatorSetup, parameter
 
 % Compute and classify sensitivities at the initial parameter values.
 X0 = getScaledParameterVector(simulatorSetup, parameters);
-initialParameterValues = cellfun( ...
-    @(parameter) parameter.getParameterValue(simulatorSetup), parameters);
-sensitivityReport = computeSensitivities( ...
-    X0, objective, HRC.shortnames, scaling);
+initialParameterValues = cellfun(@(parameter) parameter.getParameterValue(simulatorSetup), parameters);
+sensitivityReport = computeSensitivities(X0, objective, HRC.shortnames, scaling);
+senstbl = table(HRC.shortnames(:), abs(sensitivityReport.sensitivities), sensitivityReport.initialGroup(:), ...
+                 'VariableNames', {'Parameter', 'Sensitivity', 'Initial Group'});
+% Sort by sensitivities
+[~, sortIdx] = sort(abs(sensitivityReport.sensitivities), 'descend');
+senstbl = senstbl(sortIdx, :);
+disp(senstbl);
 
 if debug
     % The least squares function evaluated at the experimental values
@@ -276,16 +280,12 @@ if hessian
     hessianScaled = 0.5 .* (hessianScaled + hessianScaled');
 
     % Curvature and parameter modes
-    [eigenvecs0, eigenvals0] = eig(hessianScaled, 'vector');
-    [eigenvals, order] = sort(eigenvals0, 'descend');
-    eigenvecs = eigenvecs0(:, order);
-
-    eigtbl0 = table(eigenvals0, 'VariableNames', {'Eigenvalue'}, 'RowNames', shortnames);
-    eigtbl = table(eigenvals, 'VariableNames', {'Eigenvalue'}, 'RowNames', shortnames(order));
+    [eigenvecs, eigenvals] = eig(hessianScaled, 'vector');
+    eigtbl = table(eigenvals, 'VariableNames', {'Eigenvalue'}, 'RowNames', HRC.shortnames);
     disp(eigtbl);
 
     for k = 1:numberOfParameters
-        fprintf('%s\n', shortnames{order(k)});
+        fprintf('%s\n', HRC.shortnames{k});
         fprintf('Eigenvalue %d: %g\n', k, eigenvals(k));
         fprintf('Eigenvector %d: ', k);
         fprintf('%g ', eigenvecs(:, k));
@@ -305,7 +305,72 @@ if hessian
     fprintf('SVD condition number: %.3e\n', conditionNumber);
     fprintf('Negative eigenvals: %d\n', nnz(eigenvals < -rankTolerance));
 
+    % Plot eigenvectors as a heatmap
+    figure;
+    imagesc(eigenvecs);
 
+    % Symmetric color limits are important for signed eigenvectors
+    clim([-1 1]);
+
+    % Diverging colormap: blue -> white -> red
+    n = 256;
+    c1 = [linspace(0,1,n/2)', linspace(0,1,n/2)', ones(n/2,1)];
+    c2 = [ones(n/2,1), linspace(1,0,n/2)', linspace(1,0,n/2)'];
+
+    colormap([c1; c2]);
+    colorbar;
+
+    axis equal tight;
+    xticks(1:numel(eigenvals));
+    modeNames = arrayfun(@(i) sprintf('Mode %d \\lambda_{%d}=%.3g', ...
+                                      i, i, eigenvals(i)), ...
+                         1:numel(eigenvals), 'UniformOutput', false);
+    xticklabels(modeNames);
+
+    yticks(1:numel(eigenvals));
+    yticklabels(strrep(HRC.shortnames(), '_', '\_'));
+
+    xlabel('Gauss-Newton Hessian eigenmode');
+    ylabel('Scaled parameter');
+    title('Eigenvectors of scaled Gauss-Newton Hessian');
+
+    set(gca, ...
+        'FontSize', 11, ...
+        'TickLabelInterpreter', 'tex');
+
+    % Draw grid around the "pixels"
+    hold on;
+    for k = 0.5:1:(numel(eigenvals)+0.5)
+        xline(k, 'k-', 'LineWidth', 0.5);
+        yline(k, 'k-', 'LineWidth', 0.5);
+    end
+
+    % Add numerical values inside each cell
+    for i = 1:numel(eigenvals)
+        for j = 1:numel(eigenvals)
+
+            val = eigenvecs(i,j);
+
+            % Choose text color for contrast
+            if abs(val) > 0.55
+                txtColor = 'w';
+            else
+                txtColor = 'k';
+            end
+
+            % Always use two significant digits for clarity
+            text(j, i, sprintf('%#.2g', round(val, 2, 'significant')), ...
+                 'HorizontalAlignment', 'center', ...
+                 'VerticalAlignment', 'middle', ...
+                 'FontWeight', 'bold', ...
+                 'FontSize', 13, ...
+                 'Color', txtColor);
+        end
+    end
+
+    hold off;
+
+    return
 end
 
 
@@ -382,9 +447,9 @@ finalParameterValues = cellfun( ...
     @(parameter) parameter.getParameterValue(setupOpt), parameters);
 sensitivitySummary = table( ...
     HRC.shortnames(:), initialParameterValues(:), finalParameterValues(:), ...
-    sensitivityReport.initialGroup(:), ...
+    sensitivityReport.absoluteSensitivities(:), sensitivityReport.initialGroup(:), ...
     'VariableNames', ...
-    {'Shortname', 'InitialValue', 'FinalValue', 'InitialGroup'});
+    {'Shortname', 'InitialValue', 'FinalValue', 'Sensitivity', 'InitialGroup'});
 fprintf('\nInitial sensitivity classification and calibration results:\n');
 disp(sensitivitySummary);
 
