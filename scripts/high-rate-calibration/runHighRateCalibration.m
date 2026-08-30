@@ -22,10 +22,11 @@ sep   = 'Separator';
 % mrstDebug(0);
 
 doplot = true;
-debug = false;
+debug = true;
 hessian = true;
-gradientCheckStepSizes = [1e-1, 1e-2, 1e-3, 1e-4, ...
-                          1e-5, 1e-6, 1e-7];
+gradientStepSizes = [1e-1, 1e-2, 1e-3, 1e-4, 1e-5, 1e-6, 1e-7];
+%hessianStepSizes = [1e-4, 1e-5, 1e-6, 1e-7];
+hessianStepSizes = [1e-7, 1e-8, 1e-9, 1e-10];
 
 getTime = @(states) cellfun(@(s) s.time, states);
 getE = @(states) cellfun(@(s) s.(ctrl).E, states);
@@ -52,7 +53,8 @@ jsonstructEC = parseBattmoJson(filename);
 % Use 'elyte_bgfactor' instead of the two specific factors to calibrate one shared factor.
 % shortnames = {'ne_vsa', 'pe_vsa', 'ne_D', 'pe_D', 'elyte_bgfactorKappa', 'elyte_bgfactorD'};
 % shortnames = {'pe_vsa', 'ne_D', 'pe_D', 'elyte_bgfactor'};
-shortnames = {'pe_vsa', 'ne_D', 'pe_D', 'elyte_bgfactorKappa', 'elyte_bgfactorD'};
+% shortnames = {'pe_vsa', 'ne_D', 'pe_D', 'elyte_bgfactorKappa', 'elyte_bgfactorD'};
+shortnames = {'pe_vsa', 'ne_D', 'pe_D', 'elyte_bgfactorD'};
 disp('shortnames:');
 printer(shortnames);
 useRegionBruggemanCoefficients = any(contains(shortnames, 'elyte_bg'));
@@ -132,7 +134,7 @@ X0 = getScaledParameterVector(simulatorSetup, parameters);
 initialParameterValues = cellfun(@(parameter) parameter.getParameterValue(simulatorSetup), parameters);
 sensitivityReport = computeSensitivities(X0, objective, HRC.shortnames, scaling);
 senstbl = table(HRC.shortnames(:), abs(sensitivityReport.sensitivities), sensitivityReport.initialGroup(:), ...
-                 'VariableNames', {'Parameter', 'Sensitivity', 'Initial Group'});
+                'VariableNames', {'Parameter', 'Sensitivity', 'Initial Group'});
 % Sort by sensitivities
 [~, sortIdx] = sort(abs(sensitivityReport.sensitivities), 'descend');
 senstbl = senstbl(sortIdx, :);
@@ -150,10 +152,9 @@ if debug
     disp('Gradient comparison at initial parameters:');
     compareAdjointAndFiniteDifferenceGradients( ...
         X0, objective, HRC.shortnames, ...
-        'PerturbationSize', gradientCheckStepSizes, ...
+        'PerturbationSize', gradientStepSizes, ...
         'doplot', true);
-
-    return
+    %return
 end
 
 %% Run optimization
@@ -177,9 +178,9 @@ maxit = 100;
                                     'maxit'           , maxit       , ...
                                     'logPlot'         , true        , ...
                                     'callbackfunc'    , callbackfunc, ...
-                                    'plotEvolution'   , doplot, ...
-                                    'limitedMemory', ~hessian, ...
-                                    'outputHessian', hessian);
+                                    'plotEvolution'   , doplot      , ...
+                                    'limitedMemory'   , ~hessian    , ...
+                                    'outputHessian'   , hessian);
 
 setupOpt = updateSetupFromScaledParameters(simulatorSetup, parameters, Xopt);
 
@@ -197,7 +198,7 @@ if debug && numel(history.val) >= 2 && ...
     disp('Gradient comparison at optimized parameters:');
     compareAdjointAndFiniteDifferenceGradients( ...
         Xopt, objective, HRC.shortnames, ...
-        'PerturbationSize', gradientCheckStepSizes);
+        'PerturbationSize', gradientStepSizes);
 end
 
 %% Extract parameters
@@ -283,30 +284,28 @@ fprintf('RMSE after calibration: %g mV\n', RMSE/milli);
 if hessian
 
     % history.hess contains the inverse
-    inverseHessianScaled = history.hess{end};
-    numberOfParameters = numel(Xopt);
-
-    inverseHessianScaled = 0.5 .* (inverseHessianScaled + inverseHessianScaled');
-    hessianScaled = inverseHessianScaled \ eye(numberOfParameters);
+    invHscaled = history.hess{end};
+    invHscaled = 0.5 .* (invHscaled + invHscaled');
+    Hscaled = invHscaled \ eye(numel(Xopt));
 
     % This is the hessian wrt unit-box coords and for the scaled objective
-    hessianScaled = 0.5 .* (hessianScaled + hessianScaled');
+    Hscaled = 0.5 .* (Hscaled + Hscaled');
 
     % Curvature and parameter modes
-    [eigenvecs, eigenvals] = eig(hessianScaled, 'vector');
-    eigtbl = table(eigenvals, 'VariableNames', {'Eigenvalue'}, 'RowNames', HRC.shortnames);
+    [eigenvecsBFGS, eigenvalsBFGS] = eig(Hscaled, 'vector');
+    eigtbl = table(eigenvalsBFGS, 'VariableNames', {'Eigenvalue'}, 'RowNames', HRC.shortnames);
     disp(eigtbl);
 
-    for k = 1:numberOfParameters
+    for k = 1:numel(Xopt)
         fprintf('%s\n', HRC.shortnames{k});
-        fprintf('Eigenvalue %d: %g\n', k, eigenvals(k));
+        fprintf('Eigenvalue %d: %g\n', k, eigenvalsBFGS(k));
         fprintf('Eigenvector %d: ', k);
-        fprintf('%g ', eigenvecs(:, k));
+        fprintf('%g ', eigenvecsBFGS(:, k));
         fprintf('\n');
     end
 
     % Conditioning and numerical rank
-    [U, singularvals, V] = svd(hessianScaled, 'econ');
+    [U, singularvals, V] = svd(Hscaled, 'econ');
     singularvals = diag(singularvals);
 
     relativeTolerance = 1e-10;
@@ -316,76 +315,160 @@ if hessian
 
     fprintf('Numerical rank: %d/%d\n', numericalRank, numel(Xopt));
     fprintf('SVD condition number: %.3e\n', conditionNumber);
-    fprintf('Negative eigenvals: %d\n', nnz(eigenvals < -rankTolerance));
+    fprintf('Negative eigenvals: %d\n', nnz(eigenvalsBFGS < -rankTolerance));
 
-    % Plot eigenvectors as a heatmap
-    figure;
-    imagesc(eigenvecs);
+    if debug
+        % Compare hessian from bfgs with the finite difference of adjoint gradients
+        [HfdScaled, HfdReport] = approximateFiniteDifferenceHessian(Xopt, objective, HRC.shortnames, ...
+                                                                    'PerturbationSize', hessianStepSizes);
 
-    % Symmetric color limits are important for signed eigenvectors
-    clim([-1 1]);
+        numberOfStepSizes = numel(hessianStepSizes);
+        relativeErrorToBFGS = zeros(numberOfStepSizes, 1);
+        maximumAbsoluteError = zeros(numberOfStepSizes, 1);
+        fdeigenvals = zeros(numel(Xopt), numberOfStepSizes);
 
-    % Diverging colormap: blue -> white -> red
-    n = 256;
-    c1 = [linspace(0,1,n/2)', linspace(0,1,n/2)', ones(n/2,1)];
-    c2 = [ones(n/2,1), linspace(1,0,n/2)', linspace(1,0,n/2)'];
+        for stepIndex = 1:numberOfStepSizes
+            Hfd = HfdScaled(:, :, stepIndex);
+            Hdiff = Hscaled - Hfd;
 
-    colormap([c1; c2]);
-    colorbar;
-
-    axis equal tight;
-    xticks(1:numel(eigenvals));
-    modeNames = arrayfun(@(i) sprintf('Mode %d \\lambda_{%d}=%.3g', ...
-                                      i, i, eigenvals(i)), ...
-                         1:numel(eigenvals), 'UniformOutput', false);
-    xticklabels(modeNames);
-
-    yticks(1:numel(eigenvals));
-    yticklabels(strrep(HRC.shortnames(), '_', '\_'));
-
-    xlabel('Gauss-Newton Hessian eigenmode');
-    ylabel('Scaled parameter');
-    title('Eigenvectors of scaled Gauss-Newton Hessian');
-
-    set(gca, ...
-        'FontSize', 11, ...
-        'TickLabelInterpreter', 'tex');
-
-    % Draw grid around the "pixels"
-    hold on;
-    for k = 0.5:1:(numel(eigenvals)+0.5)
-        xline(k, 'k-', 'LineWidth', 0.5);
-        yline(k, 'k-', 'LineWidth', 0.5);
-    end
-
-    % Add numerical values inside each cell
-    for i = 1:numel(eigenvals)
-        for j = 1:numel(eigenvals)
-
-            val = eigenvecs(i,j);
-
-            % Choose text color for contrast
-            if abs(val) > 0.55
-                txtColor = 'w';
-            else
-                txtColor = 'k';
-            end
-
-            % Always use two significant digits for clarity
-            text(j, i, sprintf('%#.2g', round(val, 2, 'significant')), ...
-                 'HorizontalAlignment', 'center', ...
-                 'VerticalAlignment', 'middle', ...
-                 'FontWeight', 'bold', ...
-                 'FontSize', 13, ...
-                 'Color', txtColor);
+            relativeErrorToBFGS(stepIndex) = norm(Hdiff, 'fro') ./ max(norm(Hfd, 'fro'), eps);
+            maximumAbsoluteError(stepIndex) = max(abs(Hdiff), [], 'all');
+            fdeigenvals(:, stepIndex) = sort(eig(Hfd));
         end
+
+        Hcomparison = HfdReport.summary;
+        Hcomparison.RelativeErrorToBFGS = relativeErrorToBFGS;
+        Hcomparison.MaximumAbsoluteError = maximumAbsoluteError;
+        disp('Finite-difference Hessian comparison:');
+        disp(Hcomparison);
+        fprintf('Gradient evaluations for finite-difference Hessians: %d\n', ...
+                HfdReport.numberOfGradientEvaluations);
+
+        stencilNames = matlab.lang.makeUniqueStrings(matlab.lang.makeValidName(compose('h_%g', hessianStepSizes)));
+        stencilTable = cell2table(HfdReport.schemes, ...
+                                  'VariableNames', cellstr(stencilNames), ...
+                                  'RowNames', HRC.shortnames);
+        disp('Finite-difference stencil by parameter:');
+        disp(stencilTable);
+
+        eigenvalueComparison = table( ...
+            (1:numel(Xopt))', eigenvalsBFGS, ...
+            'VariableNames', {'Mode', 'BFGS'});
+        for stepIndex = 1:numberOfStepSizes
+            varname = matlab.lang.makeValidName(sprintf('FD_h_%g', hessianStepSizes(stepIndex)));
+            eigenvalueComparison.(varname) = fdeigenvals(:, stepIndex);
+        end
+        disp('Hessian eigenvalue comparison:');
+        disp(eigenvalueComparison);
+
+        boundTolerance = 1e-8;
+        freeParameters = Xopt > boundTolerance & Xopt < 1 - boundTolerance;
+        activeParameters = ~freeParameters;
+
+        if any(activeParameters)
+            activeParameterTable = table( ...
+                HRC.shortnames(activeParameters), Xopt(activeParameters), ...
+                'VariableNames', {'Parameter', 'ScaledValue'});
+            disp('Parameters active at a unit-box bound:');
+            disp(activeParameterTable);
+        end
+
+        fprintf('Free parameters for reduced-Hessian analysis: %d/%d\n', ...
+                nnz(freeParameters), numel(Xopt));
+        if any(freeParameters)
+            for stepIndex = 1:numberOfStepSizes
+                Hreduced = HfdScaled(freeParameters, freeParameters, stepIndex);
+                reducedEigenvalues = eig(Hreduced);
+                fprintf(['FD reduced Hessian h=%g: min eigenvalue=%g, ', ...
+                         'max eigenvalue=%g\n'], ...
+                        hessianStepSizes(stepIndex), ...
+                        min(reducedEigenvalues), max(reducedEigenvalues));
+            end
+        end
+        keyboard;
+    end % end debug
+
+    hessianfdpertsize = 1e-6; % deduced from debug
+    [HfdScaled, HfdReport] = approximateFiniteDifferenceHessian(Xopt, objective, HRC.shortnames, ...
+                                                                'PerturbationSize', hessianfdpertsize);
+    [eigenvecsFD, eigenvalsFD] = eig(HfdScaled, 'vector');
+
+    alleigenvecs = {eigenvecsBFGS, eigenvecsFD};
+    alleigenvals = {eigenvalsBFGS, eigenvalsFD};
+    casenames = {'BFGS', 'FD'};
+
+    for icase = 1:2
+
+        eigenvecs = alleigenvecs{icase};
+        eigenvals = alleigenvals{icase};
+        casename = casenames{icase};
+
+        % Plot eigenvectors as a heatmap
+        figure;
+        imagesc(eigenvecs);
+
+        % Symmetric color limits are important for signed eigenvectors
+        clim([-1 1]);
+
+        % Diverging colormap: blue -> white -> red
+        n = 256;
+        c1 = [linspace(0,1,n/2)', linspace(0,1,n/2)', ones(n/2,1)];
+        c2 = [ones(n/2,1), linspace(1,0,n/2)', linspace(1,0,n/2)'];
+
+        colormap([c1; c2]);
+        colorbar;
+
+        axis equal tight;
+        xticks(1:numel(eigenvals));
+        modeNames = arrayfun(@(i) sprintf('Mode %d \\lambda_{%d}=%.3g', ...
+                                          i, i, eigenvals(i)), ...
+                             1:numel(eigenvals), 'UniformOutput', false);
+        xticklabels(modeNames);
+
+        yticks(1:numel(eigenvals));
+        yticklabels(strrep(HRC.shortnames(), '_', '\_'));
+
+        xlabel(sprintf('%s Hessian eigenmode', casename));
+        ylabel('Scaled parameter');
+        title(sprintf('Eigenvectors of scaled %s Hessian', casename));
+
+        set(gca, 'FontSize', 11, 'TickLabelInterpreter', 'tex');
+
+        % Draw grid around the "pixels"
+        hold on;
+        for k = 0.5:1:(numel(eigenvals)+0.5)
+            xline(k, 'k-', 'LineWidth', 0.5);
+            yline(k, 'k-', 'LineWidth', 0.5);
+        end
+
+        % Add numerical values inside each cell
+        for i = 1:numel(eigenvals)
+            for j = 1:numel(eigenvals)
+
+                val = eigenvecs(i,j);
+
+                % Choose text color for contrast
+                if abs(val) > 0.55
+                    txtColor = 'w';
+                else
+                    txtColor = 'k';
+                end
+
+                % Always use two significant digits for clarity
+                text(j, i, sprintf('%#.2g', round(val, 2, 'significant')), ...
+                     'HorizontalAlignment', 'center', ...
+                     'VerticalAlignment', 'middle', ...
+                     'FontWeight', 'bold', ...
+                     'FontSize', 13, ...
+                     'Color', txtColor);
+            end
+        end
+
+        hold off;
+
     end
 
-    hold off;
-
-    return
 end
-
 
 %% Print
 
@@ -398,24 +481,29 @@ printer(jsonstructHRC);
 % = poro^-bman.
 
 model = outputOpt.model;
-rbc = model.(elyte).regionBruggemanCoefficients;
-bgfactor = model.(elyte).bgfactor;
-effbman = @(poro, bman) bman * log(bgfactor) / log(poro);
-effbmen = struct();
-effbmen.(ne) = effbman(1-model.(ne).(co).volumeFraction, rbc.(ne));
-effbmen.(pe) = effbman(1-model.(pe).(co).volumeFraction, rbc.(pe));
-effbmen.(sep) = effbman(model.(sep).porosity, rbc.(sep));
-disp('Pseudo Bruggeman coefficients:');
-printer(effbmen);
+if any(strcmp(HRC.shortnames(), 'elyte_bgfactor'))
+    rbc = model.(elyte).regionBruggemanCoefficients;
+    bgfactor = model.(elyte).bgfactor;
+    effbman = @(poro, bman) bman * log(bgfactor) / log(poro);
+    effbmen = struct();
+    effbmen.(ne) = effbman(1-model.(ne).(co).volumeFraction, rbc.(ne));
+    effbmen.(pe) = effbman(1-model.(pe).(co).volumeFraction, rbc.(pe));
+    effbmen.(sep) = effbman(model.(sep).porosity, rbc.(sep));
+    disp('Pseudo Bruggeman coefficients:');
+    printer(effbmen);
 
-% Convert to tortuosities
-tortuosity = @(vf, bman) vf.^(-bman);
-tau = struct();
-tau.(ne) = tortuosity(1-model.(ne).(co).volumeFraction, effbmen.(ne));
-tau.(pe) = tortuosity(1-model.(pe).(co).volumeFraction, effbmen.(pe));
-tau.(sep) = tortuosity(model.(sep).porosity, effbmen.(sep));
-disp('Derived tortuosities');
-printer(tau);
+    % Convert to tortuosities
+    tortuosity = @(vf, bman) vf.^(-bman);
+    tau = struct();
+    tau.(ne) = tortuosity(1-model.(ne).(co).volumeFraction, effbmen.(ne));
+    tau.(pe) = tortuosity(1-model.(pe).(co).volumeFraction, effbmen.(pe));
+    tau.(sep) = tortuosity(model.(sep).porosity, effbmen.(sep));
+    disp('Derived tortuosities');
+    printer(tau);
+elseif any(strcmp(HRC.shortnames(), 'elyte_bgfactorKappa')) && any(strcmp(HRC.shortnames(), 'elyte_bgfactorD'))
+    rbc = model.(elyte).regionBruggemanCoefficients;
+end
+
 
 % % Postprocess: Report effective electrode conductivities and
 % % electrolyte tortuosities
@@ -449,9 +537,6 @@ effCond = struct(pe, outputOpt.model.(pe).(co).effectiveElectronicConductivity, 
 disp('Effective electronic conductivities:');
 printer(effCond);
 
-% For testing: print NE volumetric surface area
-fprintf('Initial diffusion Dne=%g volumetricsurfacearea=%g\n', ...
-        Dne, jsonstructHRC.(ne).(co).(am).(itf).volumetricSurfaceArea);
 fprintf('RMSE %g mV\n', RMSE/milli);
 disp(reasonStr)
 
