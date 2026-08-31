@@ -52,9 +52,9 @@ jsonstructEC = parseBattmoJson(filename);
 %shortnames = {'ne_vsa', 'pe_vsa', 'ne_bg', 'pe_bg', 'ne_D', 'pe_D', 'elyte_bgfactorKappa', 'elyte_bgfactorD'};
 % Use 'elyte_bgfactor' instead of the two specific factors to calibrate one shared factor.
 % shortnames = {'ne_vsa', 'pe_vsa', 'ne_D', 'pe_D', 'elyte_bgfactorKappa', 'elyte_bgfactorD'};
-% shortnames = {'pe_vsa', 'ne_D', 'pe_D', 'elyte_bgfactor'};
+shortnames = {'pe_vsa', 'ne_D', 'pe_D', 'elyte_bgfactor'};
 % shortnames = {'pe_vsa', 'ne_D', 'pe_D', 'elyte_bgfactorKappa', 'elyte_bgfactorD'};
-shortnames = {'pe_vsa', 'ne_D', 'pe_D', 'elyte_bgfactorD'};
+% shortnames = {'pe_vsa', 'ne_D', 'pe_D', 'elyte_bgfactorD'};
 disp('shortnames:');
 printer(shortnames);
 useRegionBruggemanCoefficients = any(contains(shortnames, 'elyte_bg'));
