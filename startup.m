@@ -30,12 +30,12 @@ function startup()
     mrstModule add ad-core optimization mpfa
 
     reset(groot);
+    % set(groot, 'DefaultFigureWindowStyle', 'docked')
     set(groot, 'defaultlinelinewidth', 2)
-    set(groot, 'defaulttextfontsize', 12);
-    set(groot, 'defaultaxesfontsize', 12);
-    set(groot, 'DefaultAxesTitleFontSizeMultiplier',1.2)
-    set(groot, 'DefaultFigurePosition', [100, 100, 600, 400]);
-    set(groot, 'DefaultFigureWindowStyle', 'docked')
+    set(groot, 'defaulttextfontsize', 15);
+    set(groot, 'defaultaxesfontsize', 15);
+    % set(groot, 'DefaultAxesTitleFontSizeMultiplier',1.2)
+    set(groot, 'DefaultFigurePosition', [100, 100, 560, 420]);
 
     datetime.setDefaultFormats('default','yyyy-MM-dd HH:mm:ss');
 
