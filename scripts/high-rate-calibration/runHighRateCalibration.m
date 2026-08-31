@@ -22,8 +22,8 @@ doplot = true;
 debug = true;
 hessian = true;
 dosave = true;
-gradientStepSizes = [1e-1, 1e-2, 1e-3, 1e-4, 1e-5, 1e-6, 1e-7];
-hessianStepSizes = [1e-5, 1e-6, 1e-7, 1e-8, 1e-9];
+gradSteps = [1e-1, 1e-2, 1e-3, 1e-4, 1e-5, 1e-6, 1e-7];
+hessianSteps = [1e-5, 1e-6, 1e-7, 1e-8, 1e-9];
 
 getTime = @(states) cellfun(@(s) s.time, states);
 getE = @(states) cellfun(@(s) s.(ctrl).E, states);
@@ -46,12 +46,7 @@ expdata = struct('time', dataraw.time{k} * hour, ...
 filename     = fullfile(getHydra0Dir(), 'parameters', 'equilibrium-calibration-parameters.json');
 jsonstructEC = parseBattmoJson(filename);
 
-%shortnames = {'ne_vsa', 'pe_vsa', 'ne_bg', 'pe_bg', 'ne_D', 'pe_D', 'elyte_bgfactorKappa', 'elyte_bgfactorD'};
-% Use 'elyte_bgfactor' instead of the two specific factors to calibrate one shared factor.
-% shortnames = {'ne_vsa', 'pe_vsa', 'ne_D', 'pe_D', 'elyte_bgfactorKappa', 'elyte_bgfactorD'};
 shortnames = {'pe_vsa', 'ne_D', 'pe_D', 'elyte_bgfactor'};
-% shortnames = {'pe_vsa', 'ne_D', 'pe_D', 'elyte_bgfactorKappa', 'elyte_bgfactorD'};
-% shortnames = {'pe_vsa', 'ne_D', 'pe_D', 'elyte_bgfactorD'};
 disp('shortnames:');
 printer(shortnames);
 useRegionBruggemanCoefficients = any(contains(shortnames, 'elyte_bg'));
@@ -117,18 +112,17 @@ simulatorSetup = SimulationSetup(struct('model'          , output0.model   , ...
 
 % Setup parameters to be calibrated
 HRC = HighRateCalibration(simulatorSetup, 'shortnames', shortnames);
-parameters = HRC.getParams();
 
 % Objective function
 lsq = @(simsetup, states, varargin) leastSquaresEI(simsetup, states, statesExp, varargin{:});
 v = lsq(simulatorSetup, output0.states);
 scaling = sum([v{:}]);
-objective = @(p, varargin) evalObjectiveBattmo(p, lsq, simulatorSetup, parameters, ...
+objective = @(p, varargin) evalObjectiveBattmo(p, lsq, simulatorSetup, HRC.getParams(), ...
                                                'objScaling', scaling, varargin{:});
 
 % Compute and classify sensitivities at the initial parameter values.
-X0 = getScaledParameterVector(simulatorSetup, parameters);
-initialParameterValues = cellfun(@(parameter) parameter.getParameterValue(simulatorSetup), parameters);
+X0 = getScaledParameterVector(simulatorSetup, HRC.getParams());
+initialParams = cellfun(@(parameter) parameter.getParameterValue(simulatorSetup), HRC.getParams());
 sensitivityReport = computeSensitivities(X0, objective, HRC.shortnames, scaling);
 senstbl = table(HRC.shortnames(:), abs(sensitivityReport.sensitivities), sensitivityReport.initialGroup(:), ...
                 'VariableNames', {'Parameter', 'Sensitivity', 'Initial Group'});
@@ -149,7 +143,7 @@ if debug
     disp('Gradient comparison at initial parameters:');
     compareAdjointAndFiniteDifferenceGradients( ...
         X0, objective, HRC.shortnames, ...
-        'PerturbationSize', gradientStepSizes, ...
+        'PerturbationSize', gradSteps, ...
         'doplot', true);
     %return
 end
@@ -158,7 +152,7 @@ end
 
 v0 = sensitivityReport.objectiveValue;
 
-callbackfunc = @(history, it) callbackplot(history, it, simulatorSetup, parameters, expdata, ...
+callbackfunc = @(history, it) callbackplot(history, it, simulatorSetup, HRC.getParams(), expdata, ...
                                            'plotEveryIt', 10     , ...
                                            'objScaling' , scaling, ...
                                            'doplot'     , doplot);
@@ -179,7 +173,7 @@ maxit = 100;
                                     'limitedMemory'   , ~hessian    , ...
                                     'outputHessian'   , hessian);
 
-setupOpt = updateSetupFromScaledParameters(simulatorSetup, parameters, Xopt);
+setupOpt = updateSetupFromScaledParameters(simulatorSetup, HRC.getParams(), Xopt);
 
 fprintf('obj val=%1.2f (%1.2f), iter=%d\n', vopt, v0, numel(history.val));
 reasonStr = getReasonStr(history, ...
@@ -195,7 +189,7 @@ if debug && numel(history.val) >= 2 && ...
     disp('Gradient comparison at optimized parameters:');
     compareAdjointAndFiniteDifferenceGradients( ...
         Xopt, objective, HRC.shortnames, ...
-        'PerturbationSize', gradientStepSizes);
+        'PerturbationSize', gradSteps);
 end
 
 % Plot evolution
@@ -238,7 +232,7 @@ end
 
 vfinal = lsq(simulatorSetup, outputOpt.states);
 
-expdataUinterp1 = @(t) interp1(expdata.time, expdata.U, t, 'linear', 'extrap');
+getExpUinterp = @(t) interp1(expdata.time, expdata.U, t, 'linear', 'extrap');
 RMSE = l2error(getTime(outputOpt.states), getE(outputOpt.states), expdata.time, expdata.U, 'extrap', true);
 
 fprintf('Final least squares values:\n');
@@ -249,7 +243,7 @@ fprintf('RMSE: %g mV\n', RMSE/milli);
 if doplot
     % plot differences
     figure; hold on; grid on;
-    plot(getTime(outputOpt.states), (getE(outputOpt.states) - expdataUinterp1(getTime(outputOpt.states))).^2, 'displayname', '|E_{sim} - E_{exp}|^2');
+    plot(getTime(outputOpt.states), (getE(outputOpt.states) - getExpUinterp(getTime(outputOpt.states))).^2, 'displayname', '|E_{sim} - E_{exp}|^2');
     plot(getTime(outputOpt.states), [vfinal{:}], 'displayname', 'vfinal');
 end
 
@@ -322,8 +316,8 @@ if hessian
     [U, singularvals, V] = svd(Hscaled, 'econ');
     singularvals = diag(singularvals);
 
-    relativetol = 1e-10;
-    ranktol = relativetol * singularvals(1);
+    reltol = 1e-10;
+    ranktol = reltol * singularvals(1);
     numericalRank = nnz(singularvals > ranktol);
     condno = singularvals(1) / singularvals(end);
 
@@ -334,31 +328,31 @@ if hessian
     if debug
         % Compare hessian from bfgs with the finite difference of adjoint gradients
         [HfdScaled, HfdReport] = approximateFiniteDifferenceHessian(Xopt, objective, HRC.shortnames, ...
-                                                                    'PerturbationSize', hessianStepSizes);
+                                                                    'PerturbationSize', hessianSteps);
 
-        numberOfStepSizes = numel(hessianStepSizes);
-        relativeErrorToBFGS = zeros(numberOfStepSizes, 1);
-        maximumAbsoluteError = zeros(numberOfStepSizes, 1);
-        fdeigenvals = zeros(numel(Xopt), numberOfStepSizes);
+        numSteps = numel(hessianSteps);
+        relErr = zeros(numSteps, 1);
+        maxAbsErr = zeros(numSteps, 1);
+        fdeigenvals = zeros(numel(Xopt), numSteps);
 
-        for stepIndex = 1:numberOfStepSizes
-            Hfd = HfdScaled(:, :, stepIndex);
+        for stepno = 1:numSteps
+            Hfd = HfdScaled(:, :, stepno);
             Hdiff = Hscaled - Hfd;
 
-            relativeErrorToBFGS(stepIndex) = norm(Hdiff, 'fro') ./ max(norm(Hfd, 'fro'), eps);
-            maximumAbsoluteError(stepIndex) = max(abs(Hdiff), [], 'all');
-            fdeigenvals(:, stepIndex) = sort(eig(Hfd));
+            relErr(stepno) = norm(Hdiff, 'fro') ./ max(norm(Hfd, 'fro'), eps);
+            maxAbsErr(stepno) = max(abs(Hdiff), [], 'all');
+            fdeigenvals(:, stepno) = sort(eig(Hfd));
         end
 
         Hcomparison = HfdReport.summary;
-        Hcomparison.RelativeErrorToBFGS = relativeErrorToBFGS;
-        Hcomparison.MaximumAbsoluteError = maximumAbsoluteError;
+        Hcomparison.relErrToBFGS = relErr;
+        Hcomparison.maxAbsErr = maxAbsErr;
         disp('Finite-difference Hessian comparison:');
         disp(Hcomparison);
         fprintf('Gradient evaluations for finite-difference Hessians: %d\n', ...
                 HfdReport.numberOfGradientEvaluations);
 
-        stencilNames = matlab.lang.makeUniqueStrings(matlab.lang.makeValidName(compose('h_%g', hessianStepSizes)));
+        stencilNames = matlab.lang.makeUniqueStrings(matlab.lang.makeValidName(compose('h_%g', hessianSteps)));
         stencilTable = cell2table(HfdReport.schemes, ...
                                   'VariableNames', cellstr(stencilNames), ...
                                   'RowNames', HRC.shortnames);
@@ -367,33 +361,33 @@ if hessian
 
         eigenvalueComparison = table((1:numel(Xopt))', eigenvalsBFGS, ...
                                      'VariableNames', {'Mode', 'BFGS'});
-        for stepIndex = 1:numberOfStepSizes
-            varname = matlab.lang.makeValidName(sprintf('FD_h_%g', hessianStepSizes(stepIndex)));
-            eigenvalueComparison.(varname) = fdeigenvals(:, stepIndex);
+        for stepno = 1:numSteps
+            varname = matlab.lang.makeValidName(sprintf('FD_h_%g', hessianSteps(stepno)));
+            eigenvalueComparison.(varname) = fdeigenvals(:, stepno);
         end
         disp('Hessian eigenvalue comparison:');
         disp(eigenvalueComparison);
 
         boundtol = 1e-8;
-        freeParameters = Xopt > boundtol & Xopt < 1 - boundtol;
-        activeParameters = ~freeParameters;
+        freeParams = Xopt > boundtol & Xopt < 1 - boundtol;
+        activeParams = ~freeParams;
 
-        if any(activeParameters)
-            activeParameterTable = table(HRC.shortnames(activeParameters), Xopt(activeParameters), ...
+        if any(activeParams)
+            activeParameterTable = table(HRC.shortnames(activeParams), Xopt(activeParams), ...
                                          'VariableNames', {'Parameter', 'ScaledValue'});
             disp('Parameters active at a unit-box bound:');
             disp(activeParameterTable);
         end
 
         fprintf('Free parameters for reduced-Hessian analysis: %d/%d\n', ...
-                nnz(freeParameters), numel(Xopt));
-        if any(freeParameters)
-            for stepIndex = 1:numberOfStepSizes
-                Hreduced = HfdScaled(freeParameters, freeParameters, stepIndex);
+                nnz(freeParams), numel(Xopt));
+        if any(freeParams)
+            for stepno = 1:numSteps
+                Hreduced = HfdScaled(freeParams, freeParams, stepno);
                 reducedEigenvalues = eig(Hreduced);
                 fprintf(['FD reduced Hessian h=%g: min eigenvalue=%g, ', ...
                          'max eigenvalue=%g\n'], ...
-                        hessianStepSizes(stepIndex), ...
+                        hessianSteps(stepno), ...
                         min(reducedEigenvalues), max(reducedEigenvalues));
             end
         end
@@ -420,21 +414,20 @@ if hessian
         imagesc(eigenvecs);
         clim([-1 1]);
 
-        % Diverging colormap: blue -> white -> red
+        % Colormap: blue -> white -> red
         n = 256;
         c1 = [linspace(0,1,n/2)', linspace(0,1,n/2)', ones(n/2,1)];
         c2 = [ones(n/2,1), linspace(1,0,n/2)', linspace(1,0,n/2)'];
-
         colormap([c1; c2]);
         colorbar;
 
+        % Fix axis
         axis equal tight;
         xticks(1:numel(eigenvals));
-        modeNames = arrayfun(@(i) sprintf('Mode %d \\lambda_{%d}=%.3g', ...
-                                          i, i, eigenvals(i)), ...
+        modeNames = arrayfun(@(idx) sprintf('Mode %d \\lambda_{%d}=%.3g', ...
+                                          idx, idx, eigenvals(idx)), ...
                              1:numel(eigenvals), 'UniformOutput', false);
         xticklabels(modeNames);
-
         yticks(1:numel(eigenvals));
         yticklabels(strrep(HRC.shortnames(), '_', '\_'));
 
@@ -453,7 +446,6 @@ if hessian
         % Add numerical values inside each cell
         for i = 1:numel(eigenvals)
             for j = 1:numel(eigenvals)
-
                 val = eigenvecs(i,j);
 
                 % Choose text color for contrast
@@ -516,34 +508,6 @@ elseif any(strcmp(HRC.shortnames(), 'elyte_bgfactorKappa')) && any(strcmp(HRC.sh
     rbc = model.(elyte).regionBruggemanCoefficients;
 end
 
-
-% % Postprocess: Report effective electrode conductivities and
-% % electrolyte tortuosities
-% regionTags = outputOpt.model.(elyte).regionTags;
-% vfs = struct();
-% vfs.(ne)  = unique(outputOpt.model.(elyte).volumeFraction(regionTags == 1));
-% vfs.(pe)  = unique(outputOpt.model.(elyte).volumeFraction(regionTags == 2));
-% vfs.(sep) = unique(outputOpt.model.(elyte).volumeFraction(regionTags == 3));
-% assert(isscalar(vfs.(ne)));
-% assert(isscalar(vfs.(pe)));
-% assert(isscalar(vfs.(sep)));
-
-% if useRegionBruggemanCoefficients
-%     effectiveRegionBruggeman = outputOpt.rbc;
-% else
-%     bg = outputOpt.model.(elyte).bruggemanCoefficient;
-%     assert(isscalar(bg));
-%     effectiveRegionBruggeman = struct(ne, bg, pe, bg, sep, bg);
-% end
-
-% tortuosityParams = struct();
-% tortuosityParams.(elyte).regionBruggemanCoefficients = effectiveRegionBruggeman;
-% tau = calculateTortuosityFromBruggeman(vfs, tortuosityParams);
-% disp('Effective electrolyte region Bruggeman coefficients:');
-% printer(effectiveRegionBruggeman);
-% disp('Tortuosities:');
-% printer(tau);
-
 effCond = struct(pe, outputOpt.model.(pe).(co).effectiveElectronicConductivity, ...
                  ne, outputOpt.model.(ne).(co).effectiveElectronicConductivity);
 disp('Effective electronic conductivities:');
@@ -553,13 +517,11 @@ fprintf('RMSE %g mV\n', RMSE/milli);
 disp(reasonStr)
 
 % Print initial and final vals, plus sensitivities
-finalParameterValues = cellfun( ...
-    @(parameter) parameter.getParameterValue(setupOpt), parameters);
-sensitivitySummary = table( ...
-    HRC.shortnames(:), initialParameterValues(:), finalParameterValues(:), ...
-    sensitivityReport.absoluteSensitivities(:), sensitivityReport.initialGroup(:), ...
-    'VariableNames', ...
-    {'Shortname', 'InitialValue', 'FinalValue', 'Sensitivity', 'InitialGroup'});
+finalParams = cellfun(@(p) p.getParameterValue(setupOpt), HRC.getParams());
+sensitivitySummary = table(HRC.shortnames(:), initialParams(:), finalParams(:), ...
+                           sensitivityReport.absoluteSensitivities(:), sensitivityReport.initialGroup(:), ...
+                           'VariableNames', ...
+                           {'Shortname', 'InitialValue', 'FinalValue', 'Sensitivity', 'InitialGroup'});
 fprintf('\nInitial sensitivity classification and calibration results:\n');
 disp(sensitivitySummary);
 
