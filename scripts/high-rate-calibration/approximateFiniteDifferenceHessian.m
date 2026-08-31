@@ -15,78 +15,77 @@ function [hessians, report] = approximateFiniteDifferenceHessian( ...
     shortnames = shortnames(:);
     perturbationSizes = opt.PerturbationSize(:)';
     numParams = numel(X);
-    numSteps = numel(perturbationSizes);
-    numTasks = numParams * numSteps;
-    columns = cell(numTasks, 1);
-    taskSchemes = cell(numTasks, 1);
+    numSteps  = numel(perturbationSizes);
+    numTasks  = numParams * numSteps;
+    columns   = cell(numTasks, 1);
+    methods   = cell(numTasks, 1);
 
     grad0 = evaluateGradient(X, objective, numParams, 'base point');
 
-    parfor taskIndex = 1:numTasks
-        [parameterIndex, stepIndex] = ind2sub([numParams, numSteps], taskIndex);
+    parfor idx = 1:numTasks
+        [paramidx, stepidx] = ind2sub([numParams, numSteps], idx);
 
-        h = perturbationSizes(stepIndex);
-        x = X(parameterIndex);
+        h = perturbationSizes(stepidx);
+        x = X(paramidx);
         direction = zeros(numParams, 1);
-        direction(parameterIndex) = 1;
+        direction(paramidx) = 1;
 
-        okCentral = x - h >= 0 && x + h <= 1;
-        okForward = x + 2*h <= 1;
-        okBackward = x - 2*h >= 0;
+        doCentral = x - h >= 0 && x + h <= 1;
+        doForward = x + 2*h <= 1;
+        doBackward = x - 2*h >= 0;
 
-        if okCentral
-            scheme = 'central';
+        if doCentral
+            method = 'central';
             gradminus = evaluateGradient(X - h*direction, objective, numParams, ...
-                                         evaluationLabel(shortnames{parameterIndex}, h, '-h'));
+                                         evaluationLabel(shortnames{paramidx}, h, '-h'));
             gradplus = evaluateGradient(X + h*direction, objective, numParams, ...
-                                        evaluationLabel(shortnames{parameterIndex}, h, '+h'));
+                                        evaluationLabel(shortnames{paramidx}, h, '+h'));
             column = (gradplus - gradminus) ./ (2*h);
-        elseif okForward
-            scheme = 'forward';
+        elseif doForward
+            method = 'forward';
             grad1 = evaluateGradient(X + h*direction, objective, numParams, ...
-                                     evaluationLabel(shortnames{parameterIndex}, h, '+h'));
+                                     evaluationLabel(shortnames{paramidx}, h, '+h'));
             grad2 = evaluateGradient(X + 2*h*direction, objective, numParams, ...
-                                     evaluationLabel(shortnames{parameterIndex}, h, '+2h'));
+                                     evaluationLabel(shortnames{paramidx}, h, '+2h'));
             column = (-3*grad0 + 4*grad1 - grad2) ./ (2*h);
-        elseif okBackward
-            scheme = 'backward';
+        elseif doBackward
+            method = 'backward';
             grad1 = evaluateGradient(X - h*direction, objective, numParams, ...
-                                     evaluationLabel(shortnames{parameterIndex}, h, '-h'));
+                                     evaluationLabel(shortnames{paramidx}, h, '-h'));
             grad2 = evaluateGradient(X - 2*h*direction, objective, numParams, ...
-                                     evaluationLabel(shortnames{parameterIndex}, h, '-2h'));
+                                     evaluationLabel(shortnames{paramidx}, h, '-2h'));
             column = (3*grad0 - 4*grad1 + grad2) ./ (2*h);
         else
-            error('No feasible Hessian stencil for %s with h=%g.', ...
-                  shortnames{parameterIndex}, h);
+            error('No feasible Hessian stencil for %s with h=%g.', shortnames{paramidx}, h);
         end
 
-        columns{taskIndex} = column;
-        taskSchemes{taskIndex} = scheme;
+        columns{idx} = column;
+        methods{idx} = method;
     end
 
-    rawHessians = zeros(numParams, numParams, numSteps);
-    schemes = cell(numParams, numSteps);
+    allHessians = zeros(numParams, numParams, numSteps);
+    allMethods = cell(numParams, numSteps);
 
-    for taskIndex = 1:numTasks
-        [parameterIndex, stepIndex] = ind2sub([numParams, numSteps], taskIndex);
-        rawHessians(:, parameterIndex, stepIndex) = columns{taskIndex};
-        schemes{parameterIndex, stepIndex} = taskSchemes{taskIndex};
+    for idx = 1:numTasks
+        [paramidx, stepidx] = ind2sub([numParams, numSteps], idx);
+        allHessians(:, paramidx, stepidx) = columns{idx};
+        allMethods{paramidx, stepidx} = methods{idx};
     end
 
-    hessians = zeros(size(rawHessians));
+    hessians = zeros(size(allHessians));
     relAsymmetry = zeros(numSteps, 1);
     relStepChange = NaN(numSteps, 1);
 
-    for stepIndex = 1:numSteps
-        rawHessian = rawHessians(:, :, stepIndex);
-        hessians(:, :, stepIndex) = 0.5 .* (rawHessian + rawHessian');
-        relAsymmetry(stepIndex) = norm(rawHessian - rawHessian', 'fro') ./ ...
+    for stepidx = 1:numSteps
+        rawHessian = allHessians(:, :, stepidx);
+        hessians(:, :, stepidx) = 0.5 .* (rawHessian + rawHessian');
+        relAsymmetry(stepidx) = norm(rawHessian - rawHessian', 'fro') ./ ...
             max(norm(rawHessian, 'fro'), eps);
 
-        if stepIndex > 1
-            currentHessian = hessians(:, :, stepIndex);
-            previousHessian = hessians(:, :, stepIndex - 1);
-            relStepChange(stepIndex) = norm(currentHessian - previousHessian, 'fro') ./ ...
+        if stepidx > 1
+            currentHessian = hessians(:, :, stepidx);
+            previousHessian = hessians(:, :, stepidx - 1);
+            relStepChange(stepidx) = norm(currentHessian - previousHessian, 'fro') ./ ...
                 max(norm(currentHessian, 'fro'), eps);
         end
     end
@@ -95,10 +94,10 @@ function [hessians, report] = approximateFiniteDifferenceHessian( ...
                     'VariableNames', ...
                     {'PerturbationSize', 'RelativeAsymmetry', 'RelativeStepChange'});
 
-    report = struct('rawHessians'                , rawHessians       , ...
+    report = struct('allHessians'                , allHessians       , ...
                     'baseGradient'               , baseGradient      , ...
                     'perturbationSizes'          , perturbationSizes , ...
-                    'schemes'                    , {schemes}         , ...
+                    'schemes'                    , {allMethods}      , ...
                     'relativeAsymmetry'          , relAsymmetry , ...
                     'relativeStepChange'         , relStepChange, ...
                     'numberOfGradientEvaluations', 1 + 2*numTasks    , ...
