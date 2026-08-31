@@ -25,8 +25,7 @@ doplot = true;
 debug = true;
 hessian = true;
 gradientStepSizes = [1e-1, 1e-2, 1e-3, 1e-4, 1e-5, 1e-6, 1e-7];
-%hessianStepSizes = [1e-4, 1e-5, 1e-6, 1e-7];
-hessianStepSizes = [1e-7, 1e-8, 1e-9, 1e-10];
+hessianStepSizes = [1e-5, 1e-6, 1e-7, 1e-8, 1e-9];
 
 getTime = @(states) cellfun(@(s) s.time, states);
 getE = @(states) cellfun(@(s) s.(ctrl).E, states);
@@ -283,22 +282,37 @@ fprintf('RMSE after calibration: %g mV\n', RMSE/milli);
 
 if hessian
 
-    % history.hess contains the inverse
+    % history.hess contains the inverse approximate Hessian in scaled coordinates
     invHscaled = history.hess{end};
-    invHscaled = 0.5 .* (invHscaled + invHscaled');
+    issym = @(x) max(max(abs(x-x'))) < 1e-13;
+    assert(issym(invHscaled), 'invHscaled is not symmetric');
+    symmetrize = @(x) 0.5.*(x + x');
+    invHscaled = symmetrize(invHscaled);
     Hscaled = invHscaled \ eye(numel(Xopt));
+    assert(issym(Hscaled), 'Hscaled is not symmetric');
+    Hscaled = symmetrize(Hscaled);
 
-    % This is the hessian wrt unit-box coords and for the scaled objective
-    Hscaled = 0.5 .* (Hscaled + Hscaled');
-
-    % Curvature and parameter modes
+    % Eigenproblem
     [eigenvecsBFGS, eigenvalsBFGS] = eig(Hscaled, 'vector');
-    eigtbl = table(eigenvalsBFGS, 'VariableNames', {'Eigenvalue'}, 'RowNames', HRC.shortnames);
-    disp(eigtbl);
+    disp(HRC.shortnames);
 
     for k = 1:numel(Xopt)
-        fprintf('%s\n', HRC.shortnames{k});
-        fprintf('Eigenvalue %d: %g\n', k, eigenvalsBFGS(k));
+        fprintf('Eigenvalue  %d: %g\n', k, eigenvalsBFGS(k));
+        fprintf('Eigenvector %d: ', k);
+        fprintf('%g ', eigenvecsBFGS(:, k));
+        fprintf('\n');
+    end
+
+    % Fix signs: make the largest absolute value in each eigenvector positive
+    for k = 1:numel(Xopt)
+        [~, maxIdx] = max(abs(eigenvecsBFGS(:, k)));
+        if eigenvecsBFGS(maxIdx, k) < 0
+            eigenvecsBFGS(:, k) = -eigenvecsBFGS(:, k);
+        end
+    end
+    disp('After fixing signs:');
+    for k = 1:numel(Xopt)
+        fprintf('Eigenvalue  %d: %g\n', k, eigenvalsBFGS(k));
         fprintf('Eigenvector %d: ', k);
         fprintf('%g ', eigenvecsBFGS(:, k));
         fprintf('\n');
@@ -308,14 +322,14 @@ if hessian
     [U, singularvals, V] = svd(Hscaled, 'econ');
     singularvals = diag(singularvals);
 
-    relativeTolerance = 1e-10;
-    rankTolerance = relativeTolerance * singularvals(1);
-    numericalRank = nnz(singularvals > rankTolerance);
-    conditionNumber = singularvals(1) / singularvals(end);
+    relativetol = 1e-10;
+    ranktol = relativetol * singularvals(1);
+    numericalRank = nnz(singularvals > ranktol);
+    condno = singularvals(1) / singularvals(end);
 
     fprintf('Numerical rank: %d/%d\n', numericalRank, numel(Xopt));
-    fprintf('SVD condition number: %.3e\n', conditionNumber);
-    fprintf('Negative eigenvals: %d\n', nnz(eigenvalsBFGS < -rankTolerance));
+    fprintf('SVD condition number: %.3e\n', condno);
+    fprintf('Negative eigenvals: %d\n', nnz(eigenvalsBFGS < -ranktol));
 
     if debug
         % Compare hessian from bfgs with the finite difference of adjoint gradients
@@ -351,9 +365,8 @@ if hessian
         disp('Finite-difference stencil by parameter:');
         disp(stencilTable);
 
-        eigenvalueComparison = table( ...
-            (1:numel(Xopt))', eigenvalsBFGS, ...
-            'VariableNames', {'Mode', 'BFGS'});
+        eigenvalueComparison = table((1:numel(Xopt))', eigenvalsBFGS, ...
+                                     'VariableNames', {'Mode', 'BFGS'});
         for stepIndex = 1:numberOfStepSizes
             varname = matlab.lang.makeValidName(sprintf('FD_h_%g', hessianStepSizes(stepIndex)));
             eigenvalueComparison.(varname) = fdeigenvals(:, stepIndex);
@@ -361,14 +374,13 @@ if hessian
         disp('Hessian eigenvalue comparison:');
         disp(eigenvalueComparison);
 
-        boundTolerance = 1e-8;
-        freeParameters = Xopt > boundTolerance & Xopt < 1 - boundTolerance;
+        boundtol = 1e-8;
+        freeParameters = Xopt > boundtol & Xopt < 1 - boundtol;
         activeParameters = ~freeParameters;
 
         if any(activeParameters)
-            activeParameterTable = table( ...
-                HRC.shortnames(activeParameters), Xopt(activeParameters), ...
-                'VariableNames', {'Parameter', 'ScaledValue'});
+            activeParameterTable = table(HRC.shortnames(activeParameters), Xopt(activeParameters), ...
+                                         'VariableNames', {'Parameter', 'ScaledValue'});
             disp('Parameters active at a unit-box bound:');
             disp(activeParameterTable);
         end
@@ -385,7 +397,7 @@ if hessian
                         min(reducedEigenvalues), max(reducedEigenvalues));
             end
         end
-        keyboard;
+        % keyboard;
     end % end debug
 
     hessianfdpertsize = 1e-6; % deduced from debug
@@ -406,15 +418,12 @@ if hessian
         % Plot eigenvectors as a heatmap
         figure;
         imagesc(eigenvecs);
-
-        % Symmetric color limits are important for signed eigenvectors
         clim([-1 1]);
 
         % Diverging colormap: blue -> white -> red
         n = 256;
         c1 = [linspace(0,1,n/2)', linspace(0,1,n/2)', ones(n/2,1)];
         c2 = [ones(n/2,1), linspace(1,0,n/2)', linspace(1,0,n/2)'];
-
         colormap([c1; c2]);
         colorbar;
 
@@ -430,11 +439,10 @@ if hessian
 
         xlabel(sprintf('%s Hessian eigenmode', casename));
         ylabel('Scaled parameter');
-        title(sprintf('Eigenvectors of scaled %s Hessian', casename));
+        title(sprintf('Eigenvectors of %s Hessian', casename));
+        % set(gca, 'FontSize', 11, 'TickLabelInterpreter', 'tex');
 
-        set(gca, 'FontSize', 11, 'TickLabelInterpreter', 'tex');
-
-        % Draw grid around the "pixels"
+        % Draw grid around the centers
         hold on;
         for k = 0.5:1:(numel(eigenvals)+0.5)
             xline(k, 'k-', 'LineWidth', 0.5);
@@ -463,12 +471,9 @@ if hessian
                      'Color', txtColor);
             end
         end
+    end % end icase
 
-        hold off;
-
-    end
-
-end
+end % if hessian
 
 %% Print
 
