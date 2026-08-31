@@ -11,14 +11,12 @@ function plotParameterEvolution(logFilename, shortnames, varargin)
     number = '[-+]?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?';
     getcol = @(tokens, col) cellfun(@(x) str2double(x{col}), tokens).';
 
-    tokens = regexp(txt, ...
-        ['It:\s*(\d+)\s*\|[^\r\n]*?pgrad:\s*(' number ')'], 'tokens');
+    tokens = regexp(txt, ['It:\s*(\d+)\s*\|[^\r\n]*?pgrad:\s*(' number ')'], 'tokens');
     assert(~isempty(tokens), 'No pgrad records found in %s.', logFilename);
     iterations = getcol(tokens, 1);
     pgrad = getcol(tokens, 2);
 
-    tokens = regexp(txt, ...
-        ['It:\s*(\d+)\s*\|\s*val:\s*(' number ')'], 'tokens');
+    tokens = regexp(txt, ['It:\s*(\d+)\s*\|\s*val:\s*(' number ')'], 'tokens');
     assert(~isempty(tokens), 'No objective records found in %s.', logFilename);
     objectiveIterations = getcol(tokens, 1);
     objective = getcol(tokens, 2);
