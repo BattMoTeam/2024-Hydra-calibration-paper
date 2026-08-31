@@ -1,110 +1,99 @@
 function plotParameterEvolution(logFilename, shortnames, varargin)
-    % Plot optimizer convergence and parameter evolution from the calibration log
+% Plot convergence and parameter values recorded by callbackplot.
 
     opt = struct('gradTol', [], ...
                  'figure', []);
     opt = merge_options(opt, varargin{:});
 
     assert(isfile(logFilename), 'Calibration log not found: %s', logFilename);
-    logText = fileread(logFilename);
+    txt = fileread(logFilename);
 
-    numberPattern = '[-+]?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?';
+    number = '[-+]?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?';
+    getcol = @(tokens, col) cellfun(@(x) str2double(x{col}), tokens).';
 
-    % pgrad is the infinity norm of the projected objective gradient. It is a
-    % scalar convergence diagnostic, not an individual parameter sensitivity.
-    pgradPattern = ['It:\s*(\d+)\s*\|[^\r\n]*?pgrad:\s*(' numberPattern ')'];
-    pgradTokens = regexp(logText, pgradPattern, 'tokens');
-    assert(~isempty(pgradTokens), 'No pgrad records found in %s.', logFilename);
+    tokens = regexp(txt, ...
+        ['It:\s*(\d+)\s*\|[^\r\n]*?pgrad:\s*(' number ')'], 'tokens');
+    assert(~isempty(tokens), 'No pgrad records found in %s.', logFilename);
+    iterations = getcol(tokens, 1);
+    pgrad = getcol(tokens, 2);
 
-    pgradIterations = cellfun(@(entry) str2double(entry{1}), pgradTokens).';
-    pgradValues = cellfun(@(entry) str2double(entry{2}), pgradTokens).';
-    assert(all(isfinite(pgradIterations)) && all(isfinite(pgradValues)), 'The log contains invalid iteration or pgrad values.');
-    assert(all(diff(pgradIterations) > 0), 'Expected pgrad iterations to be strictly increasing.');
+    tokens = regexp(txt, ...
+        ['It:\s*(\d+)\s*\|\s*val:\s*(' number ')'], 'tokens');
+    assert(~isempty(tokens), 'No objective records found in %s.', logFilename);
+    objectiveIterations = getcol(tokens, 1);
+    objective = getcol(tokens, 2);
 
-    % The scaled objective functional is logged at every optimizer iteration.
-    objectivePattern = ['It:\s*(\d+)\s*\|\s*val:\s*(' numberPattern ')'];
-    objectiveTokens = regexp(logText, objectivePattern, 'tokens');
-    assert(~isempty(objectiveTokens), 'No objective-functional records found in %s.', logFilename);
+    assert(isequal(objectiveIterations, iterations), ...
+        'Objective and gradient records do not use the same iterations.');
+    assert(all(objective > 0), 'Objective values must be positive for semilogy.');
 
-    objectiveIterations = cellfun(@(entry) str2double(entry{1}), objectiveTokens).';
-    objectiveValues = cellfun(@(entry) str2double(entry{2}), objectiveTokens).';
-    assert(all(isfinite(objectiveIterations)) && all(isfinite(objectiveValues)), ...
-        'The log contains invalid iteration or objective values.');
-    assert(all(objectiveValues > 0) && isequal(objectiveIterations, pgradIterations), ...
-        'Expected a positive objective value for every pgrad iteration.');
+    pattern = ['callbackplot it=(\d+)\r?\n' ...
+               'vad[^\r\n]*\r?\n' ...
+               'u[^\r\n]*\r?\n' ...
+               'initial values\s+([^\r\n]+)\r?\n' ...
+               'vals\s+([^\r\n]+)'];
+    tokens = regexp(txt, pattern, 'tokens');
+    assert(~isempty(tokens), 'No callback records found in %s.', logFilename);
 
-    % callbackplot logs the physical parameter values after every completed
-    % optimizer iteration. Iteration zero is reconstructed from its repeated
-    % "initial values" record.
-    parameterPattern = ['callbackplot it=(\d+)\r?\n' 'vad[^\r\n]*\r?\n' 'u[^\r\n]*\r?\n' ...
-        'initial values\s+([^\r\n]+)\r?\n' 'vals\s+([^\r\n]+)'];
-    parameterTokens = regexp(logText, parameterPattern, 'tokens');
-    assert(~isempty(parameterTokens), 'No callback parameter records found in %s.', logFilename);
+    initial = sscanf(tokens{1}{2}, '%f').';
+    nparam = numel(initial);
+    callbackIterations = zeros(numel(tokens), 1);
+    values = zeros(numel(tokens), nparam);
 
-    initialValues = sscanf(parameterTokens{1}{2}, '%f').';
-    numberOfParameters = numel(initialValues);
-    callbackIterations = zeros(numel(parameterTokens), 1);
-    callbackValues = zeros(numel(parameterTokens), numberOfParameters);
-
-    for recordIndex = 1:numel(parameterTokens)
-        callbackIterations(recordIndex) = str2double(parameterTokens{recordIndex}{1});
-        values = sscanf(parameterTokens{recordIndex}{3}, '%f').';
-        assert(numel(values) == numberOfParameters, 'Iteration %d has %d parameter values; expected %d.', ...
-            callbackIterations(recordIndex), numel(values), numberOfParameters);
-        callbackValues(recordIndex, :) = values;
+    for i = 1:numel(tokens)
+        callbackIterations(i) = str2double(tokens{i}{1});
+        row = sscanf(tokens{i}{3}, '%f').';
+        assert(numel(row) == nparam, ...
+            'Iteration %d has the wrong number of parameters.', callbackIterations(i));
+        values(i, :) = row;
     end
 
-    assert(all(isfinite(initialValues)) && all(isfinite(callbackValues), 'all'), ...
-        'The log contains invalid parameter values.');
-    assert(all(initialValues ~= 0), 'Cannot normalize parameters whose initial value is zero.');
-    assert(all(diff(callbackIterations) > 0), 'Expected callback iterations to be strictly increasing.');
+    assert(all(initial ~= 0), 'Cannot normalize a parameter with initial value zero.');
+    assert(nparam == numel(shortnames), ...
+        'Found %d parameters but received %d names.', nparam, numel(shortnames));
 
     parameterIterations = [0; callbackIterations];
-    parameterValues = [initialValues; callbackValues];
-    relativeParameterValues = parameterValues ./ initialValues;
+    relativeValues = [initial; values] ./ initial;
 
-    assert(numberOfParameters == numel(shortnames), ...
-        'Found %d parameters, but %d names are configured.', numberOfParameters, numel(shortnames));
-
-    colors = lines(numberOfParameters);
     if isempty(opt.figure)
-        figureHandle = figure('Color', 'w', 'Name', 'High-rate calibration parameter evolution');
+        fig = figure;
     else
-        figureHandle = opt.figure;
+        fig = opt.figure;
     end
-    layout = tiledlayout(figureHandle, 3, 1, 'TileSpacing', 'compact', 'Padding', 'compact');
-    msz = 18;
-    gradientAxes = nexttile(layout);
-    semilogy(gradientAxes, pgradIterations, pgradValues, 'k.-', ...
-        'MarkerSize', msz, 'DisplayName', 'Projected gradient norm');
-    grid(gradientAxes, 'on');
-    ylabel(gradientAxes, 'Projected gradient norm');
-    % legend(gradientAxes, 'Location', 'southwest');
+
+    layout = tiledlayout(fig, 3, 1, ...
+        'TileSpacing', 'compact', 'Padding', 'compact');
+    markerSize = 18;
+
+    ax(1) = nexttile(layout);
+    semilogy(ax(1), iterations, pgrad, 'k.-', 'MarkerSize', markerSize);
+    grid(ax(1), 'on');
+    ylabel(ax(1), 'Projected gradient norm');
     if ~isempty(opt.gradTol)
-        yline(gradientAxes, opt.gradTol, 'k--', 'DisplayName', 'Gradient tolerance');
+        yline(ax(1), opt.gradTol, 'k--');
     end
 
-    objectiveAxes = nexttile(layout);
-    semilogy(objectiveAxes, objectiveIterations, objectiveValues, 'k.-', ...
-             'MarkerSize', msz, 'DisplayName', 'Objective functional');
-    grid(objectiveAxes, 'on');
-    ylabel(objectiveAxes, 'Objective functional');
-    % legend(objectiveAxes, 'Location', 'southwest');
+    ax(2) = nexttile(layout);
+    semilogy(ax(2), objectiveIterations, objective, 'k.-', ...
+        'MarkerSize', markerSize);
+    grid(ax(2), 'on');
+    ylabel(ax(2), 'Objective functional');
 
-    parameterAxes = nexttile(layout);
-    hold(parameterAxes, 'on');
-    for parameterIndex = 1:numberOfParameters
-        plot(parameterAxes, parameterIterations, relativeParameterValues(:, parameterIndex), '.-', ...
-            'Color', colors(parameterIndex, :), 'MarkerSize', msz, 'DisplayName', shortnames{parameterIndex});
+    ax(3) = nexttile(layout);
+    hold(ax(3), 'on');
+    colors = lines(nparam);
+    for i = 1:nparam
+        plot(ax(3), parameterIterations, relativeValues(:, i), '.-', ...
+            'Color', colors(i, :), 'MarkerSize', markerSize, ...
+            'DisplayName', shortnames{i});
     end
-    grid(parameterAxes, 'on');
-    xlabel(parameterAxes, 'Optimization iteration');
-    % ylabel(parameterAxes, 'Parameter value / initial value');
-    ylabel(parameterAxes, 'Normalized param. value');
-    legend(parameterAxes, 'Location', 'northwest', 'Interpreter', 'none');
+    grid(ax(3), 'on');
+    xlabel(ax(3), 'Optimization iteration');
+    ylabel(ax(3), 'Normalized param. value');
+    legend(ax(3), 'Location', 'northwest', 'Interpreter', 'none');
 
     title(layout, 'High-rate calibration evolution');
-    linkaxes([gradientAxes, objectiveAxes, parameterAxes], 'x');
-    xlim(gradientAxes, [min(pgradIterations), max(pgradIterations)]);
+    linkaxes(ax, 'x');
+    xlim(ax(1), [min(iterations), max(iterations)]);
 
 end
