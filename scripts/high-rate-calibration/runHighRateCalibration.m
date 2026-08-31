@@ -3,11 +3,8 @@
 clear all
 close all
 
-diary(sprintf('_diary-%s-%s.txt', mfilename, datetime('now', 'Format', 'yyyyMMdd-HHmmss')));
-
-set(0, 'defaultlinelinewidth', 2)
-set(0, 'defaulttextfontsize', 15);
-set(0, 'defaultaxesfontsize', 15);
+diaryname = sprintf('_diary-%s-%s.txt', mfilename, datetime('now', 'Format', 'yyyyMMdd-HHmmss'));
+diary(diaryname);
 
 am    = 'ActiveMaterial';
 itf   = 'Interface';
@@ -24,6 +21,7 @@ sep   = 'Separator';
 doplot = true;
 debug = true;
 hessian = true;
+dosave = true;
 gradientStepSizes = [1e-1, 1e-2, 1e-3, 1e-4, 1e-5, 1e-6, 1e-7];
 hessianStepSizes = [1e-5, 1e-6, 1e-7, 1e-8, 1e-9];
 
@@ -200,17 +198,20 @@ if debug && numel(history.val) >= 2 && ...
         'PerturbationSize', gradientStepSizes);
 end
 
+% Plot evolution
+fig = figure('Position', [100, 100, 560, 560]);
+plotParameterEvolution(diaryname, HRC.shortnames(), 'gradTol', gradTol, 'figure', fig);
+if dosave
+    drawnow
+    exportgraphics(fig, '/tmp/parameter-evolution.png', 'resolution', 300)
+end
+
 %% Extract parameters
 
 jsonstructHRC = HRC.export(setupOpt);
 filename = fullfile(getHydra0Dir(), 'parameters', 'high-rate-calibration-parameters.json');
 writeStruct(jsonstructHRC, filename);
 printer(jsonstructHRC);
-
-Dne = output0.model.(ne).(co).(am).(sd).referenceDiffusionCoefficient;
-Dpe = output0.model.(pe).(co).(am).(sd).referenceDiffusionCoefficient;
-filename = fullfile(getHydra0Dir(), 'parameters', sprintf('high-rate-calibration-parameters-%g-%g.json', Dne, Dpe));
-writeStruct(jsonstructHRC, filename);
 
 %% Run model with calibrated parameters
 
@@ -267,7 +268,6 @@ if doplot
     axis tight
     ylim([3.45, 4.9])
 
-    dosave = true;
     if dosave
         exportgraphics(fig, 'high-rate-calibration.png', 'resolution', 300)
     end
@@ -424,6 +424,7 @@ if hessian
         n = 256;
         c1 = [linspace(0,1,n/2)', linspace(0,1,n/2)', ones(n/2,1)];
         c2 = [ones(n/2,1), linspace(1,0,n/2)', linspace(1,0,n/2)'];
+
         colormap([c1; c2]);
         colorbar;
 
@@ -471,6 +472,12 @@ if hessian
                      'Color', txtColor);
             end
         end
+
+        if dosave
+            drawnow
+            exportgraphics(gcf, sprintf('/tmp/hessian-eigenvectors-%s.png', casename), 'resolution', 300)
+        end
+
     end % end icase
 
 end % if hessian
