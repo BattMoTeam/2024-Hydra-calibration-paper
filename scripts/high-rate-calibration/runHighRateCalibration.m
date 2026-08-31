@@ -46,6 +46,7 @@ expdata = struct('time', dataraw.time{k} * hour, ...
 filename     = fullfile(getHydra0Dir(), 'parameters', 'equilibrium-calibration-parameters.json');
 jsonstructEC = parseBattmoJson(filename);
 
+% shortnames = {'ne_vsa', 'pe_vsa', 'ne_bg', 'pe_bg', 'ne_D', 'pe_D', 'elyte_bg_ne', 'elyte_bg_pe', 'elyte_bg_sep'};
 shortnames = {'pe_vsa', 'ne_D', 'pe_D', 'elyte_bgfactor'};
 disp('shortnames:');
 printer(shortnames);
