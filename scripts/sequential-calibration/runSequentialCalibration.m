@@ -29,6 +29,9 @@ max_iterations = 3; %
 use_equivalent_eff_cond = strcmpi(geometry, '1d');
 include_current_collectors = strcmpi(geometry, '1d');
 useRegionBruggemanCoefficients = true;
+debug = false;
+hessian = true;
+hessianSteps = [1e-5, 1e-6, 1e-7, 1e-8, 1e-9];
 
 % Experimental data and base parameters
 datafilename = fullfile(getHydra0Dir(), 'raw-data', 'TE_1473.mat');
@@ -107,12 +110,7 @@ for iteration = 0:max_iterations
     fprintf('\n--- Sensitivity Analysis ---\n');
 
     if useRegionBruggemanCoefficients
-        % shortnames = {'ne_vsa', 'pe_vsa', 'ne_bg', 'pe_bg', 'ne_D', 'pe_D', ...%'ne_j0', 'pe_j0', ...
-        %               'elyte_bg_ne', 'elyte_bg_pe', 'elyte_bg_sep'};
-
-        shortnames = {'ne_vsa', 'pe_vsa', 'ne_D', 'pe_D', 'elyte_bgfactor'};
-
-        % shortnames = {'ne_vsa', 'pe_vsa', 'ne_D', 'pe_D', 'elyte_bg_ne', 'elyte_bg_pe', 'elyte_bg_sep'};
+        shortnames = {'ne_vsa', 'pe_vsa', 'ne_bg', 'pe_bg', 'ne_D', 'pe_D', 'elyte_bg_ne', 'elyte_bg_pe', 'elyte_bg_sep'};
     else
         %shortnames = {'ne_vsa', 'pe_vsa', 'ne_bg', 'pe_bg', 'ne_D', 'pe_D', 'ne_j0', 'pe_j0', 'elyte_bg'};
         shortnames = {'ne_vsa', 'pe_vsa', 'ne_D', 'pe_D', 'elyte_bg'};
@@ -161,7 +159,6 @@ for iteration = 0:max_iterations
         u, objFunc, simSetup, parameters, ...
         'gradientMethod', 'AdjointAD', 'objScaling', objScaling);
 
-    debug = false;
     if debug
 
         % Compare with finite difference gradient
@@ -281,10 +278,18 @@ for iteration = 0:max_iterations
         objScaling_group = sum([vals_group{:}]);
 
         % Optimization
-        objectiveGradient = @(p) evalObjectiveBattmoReg(p, objFunc_group, simSetup_group, params_group, ...
-                                                        'objScaling', objScaling_group, 'OptimizationSolver', OptimizationSolver);
+        objectiveGradient = @(p, varargin) evalObjectiveBattmoReg( ...
+            p, objFunc_group, simSetup_group, params_group, ...
+            'objScaling', objScaling_group, ...
+            'OptimizationSolver', OptimizationSolver, varargin{:});
 
-        BFGSopts = {'objChangeTol', 1e-10, 'gradTol', 1e-10, 'maxit', 100, 'maximize', false, 'logPlot', true};
+        BFGSopts = {'objChangeTol', 1e-10, ...
+                    'gradTol', 1e-3, ...
+                    'maxit', 100, ...
+                    'maximize', false, ...
+                    'logPlot', true, ...
+                    'limitedMemory', ~hessian, ...
+                    'outputHessian', hessian};
         [vOpt, Xopt, history] = unitBoxBFGS(X0, objectiveGradient, BFGSopts{:});
 
         disp(getBFGSstopReason(history, BFGSopts));
@@ -398,6 +403,21 @@ if any(strcmp(PS_final.shortnames, 'elyte_bgfactor'))
 
     disp('Final electrolyte tortuosities:');
     printer(final_tortuosities);
+end
+
+%% Check hessian for the final optimization group
+
+if hessian
+    invHscaled = history.hess{end};
+    hessianfdpertsize = 1e-6;
+
+    debug = true;
+    [Hscaled, HfdScaled] = calculateHessians( ...
+        invHscaled, Xopt, objectiveGradient, PS_group.shortnames, debug, ...
+        hessianSteps, hessianfdpertsize);
+
+    plotHessianEigenvectors(Hscaled, PS_group.shortnames, 'BFGS');
+    plotHessianEigenvectors(HfdScaled, PS_group.shortnames, 'FD');
 end
 
 diary off;
