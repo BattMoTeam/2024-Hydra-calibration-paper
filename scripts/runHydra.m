@@ -9,7 +9,8 @@ function output = runHydra(input, varargin)
                            'highRateParams'                , []   , ...
                            'useRegionBruggemanCoefficients', false, ...
                            'include_current_collectors'    , false, ...
-                           'geometry'                      , '1d');
+                           'geometry'                      , '1d', ...
+                           'uniformTimeSteps'              , true);
 
     if not(isempty(input))
         fds = fieldnames(input);
@@ -161,6 +162,12 @@ function output = runHydra(input, varargin)
     jsonstruct_nls.verbose = opt.verbose;
     jsonstruct = mergeStructs({jsonstruct_nls, jsonstruct});
     [model, nls, jsonstruct] = setupNonLinearSolverFromJson(model, jsonstruct);
+
+    if input.uniformTimeSteps
+        % Avoid adaptive time stepping to ensure adjoint consistency
+        nls.timeStepSelector = SimpleTimeStepSelector();
+        nls.maxTimestepCuts = 0;
+    end
 
     % Basic config
     model.verbose = opt.verbose;
