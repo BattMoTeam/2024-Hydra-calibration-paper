@@ -15,8 +15,7 @@ tolerance = 1e-9;
 %% Interior point: central differences
 
 X = [0.2; 0.4; 0.6; 0.8];
-[hessians, report] = approximateFiniteDifferenceHessian( ...
-    X, objective, shortnames, 'PerturbationSize', perturbationSizes);
+[hessians, report] = calculateFDHessian(X, objective, shortnames, perturbationSizes);
 
 for stepIndex = 1:numel(perturbationSizes)
     errorNorm = norm(hessians(:, :, stepIndex) - A, 'fro');
@@ -30,8 +29,7 @@ end
 %% Bound point: second-order one-sided differences
 
 X = [0; 1; 0.5; 0];
-[hessians, report] = approximateFiniteDifferenceHessian( ...
-    X, objective, shortnames, 'PerturbationSize', perturbationSizes);
+[hessians, report] = calculateFDHessian(X, objective, shortnames, perturbationSizes);
 
 for stepIndex = 1:numel(perturbationSizes)
     errorNorm = norm(hessians(:, :, stepIndex) - A, 'fro');
