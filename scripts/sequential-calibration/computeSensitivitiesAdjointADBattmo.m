@@ -9,9 +9,9 @@ function sens = computeSensitivitiesAdjointADBattmo(setup, states, params, getOb
 %
 % REQUIRED PARAMETERS:
 %
-%   SimulatorSetup - structure containing:
+%   SimulatorSetup - structure or SimulationSetup object containing:
 %
-%       state0   - Physical model state at `t = 0`
+%       state0/initstate - Physical model state at `t = 0`
 %       model    - Subclass of PhysicalModel class such as `Battery` that models the physical
 %                  effects we want to study.
 %       schedule - Schedule suitable for `simulateScheduleAD`.
@@ -77,9 +77,10 @@ function sens = computeSensitivitiesAdjointADBattmo(setup, states, params, getOb
 
     modelParam = validateModel(modelParam);
 
-    nstep    = numel(setup.schedule.step.val);
-    lambda   = [];
-    getState = @(i) getStateFromInput(setup.schedule, states, setup.state0, i);
+    initialState = getInitialState(setup);
+    nstep = numel(setup.schedule.step.val);
+    lambda = [];
+    getState = @(i) getStateFromInput(setup.schedule, states, initialState, i);
 
     getObjectiveState = @(tstep, model, state) getObjective(tstep, model, state, true);
     getObjectiveModel = @(tstep, model, state) getObjective(tstep, model, state, false);
@@ -122,7 +123,7 @@ function sens = computeSensitivitiesAdjointADBattmo(setup, states, params, getOb
         forces   = merge_options(setup.model.getValidDrivingForces(), forces{:});
         model    = setup.model.validateModel(forces);
 
-        state0 = model.validateState(setup.state0);
+        state0 = model.validateState(initialState);
         % set wellSols just to make subsequent function-calls happy, sensitivities wrt wellSols doesn't make sense anyway
         state0.wellSol = states{1}.wellSol;
         dt = schedule.step.val(1);
@@ -148,6 +149,17 @@ function sens = computeSensitivitiesAdjointADBattmo(setup, states, params, getOb
             sens.(nms{k}) =  initparam{k}.collapseGradient(sens.(nms{k}));
         end
 
+    end
+
+end
+
+function initialState = getInitialState(setup)
+% Support both legacy setup structs and the SimulationSetup class used by evalObjectiveBattmo.
+
+    if isa(setup, 'SimulationSetup')
+        initialState = setup.initstate;
+    else
+        initialState = setup.state0;
     end
 
 end
@@ -197,7 +209,7 @@ function setupParam = initModelParametersADI(setup, param)
 
     v  = applyFunction(@(p)p.getParameter(setup), param);
     % use same backend as problem.model
-    if isfield(setup, 'model') && isprop(setup.model, 'AutoDiffBackend')
+    if isprop(setup.model, 'AutoDiffBackend')
         [v{:}] = setup.model.AutoDiffBackend.initVariablesAD(v{:});
     else
         [v{:}] = initVariablesADI(v{:});

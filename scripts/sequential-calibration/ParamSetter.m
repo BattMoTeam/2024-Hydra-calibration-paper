@@ -314,6 +314,16 @@ classdef ParamSetter
 
         end
 
+        function jsonstruct = buildParameterJson(paramsetter, values)
+
+            locs = paramsetter.locations();
+            jsonstruct = struct();
+            for index = 1:numel(locs)
+                jsonstruct = setStructField(jsonstruct, locs{index}, values(index));
+            end
+
+        end
+
         function print(paramsetter, X)
 
             printer = @(s) disp(jsonencode(s, 'PrettyPrint', true));
