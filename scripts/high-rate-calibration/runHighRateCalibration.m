@@ -280,9 +280,12 @@ if hessian
     invHscaled = history.hess{end};
     hessianfdpertsize = 1e-6; % deduced from debug
 
-    [Hscaled, HfdScaled] = calculateHessians( ...
-        invHscaled, Xopt, objective, HRC.shortnames, debug, ...
-        hessianSteps, hessianfdpertsize);
+    Hscaled = calculateBFGSHessian(invHscaled, HRC.shortnames);
+    if debug
+        [HfdComparison, HfdReport] = calculateFDHessian(Xopt, objective, HRC.shortnames, hessianSteps);
+        compareHessians(Hscaled, HfdComparison, HfdReport, Xopt, HRC.shortnames);
+    end
+    HfdScaled = calculateFDHessian(Xopt, objective, HRC.shortnames, hessianfdpertsize);
 
     plotHessianEigenvectors(Hscaled, HRC.shortnames, 'BFGS', 'dosave', dosave);
     plotHessianEigenvectors(HfdScaled, HRC.shortnames, 'FD', 'dosave', dosave);
