@@ -5,6 +5,9 @@ clear all;
 close all;
 clc;
 
+diaryname = sprintf('_diary-%s-%s.txt', mfilename, datetime('now', 'Format', 'yyyyMMdd-HHmmss'));
+diary(diaryname);
+
 ne      = 'NegativeElectrode';
 pe      = 'PositiveElectrode';
 itf     = 'Interface';
@@ -19,11 +22,6 @@ co      = 'Coating';
 bd      = 'Binder';
 ad      = 'ConductingAdditive';
 
-diary(sprintf('diary-runSquentialCalibration-%s.txt', datetime('now', 'Format', 'yyyy-MM-dd-HH-mm-ss')));
-
-printer = @(s) disp(jsonencode(s, 'PrettyPrint', true));
-
-%% Configuration
 geometry = '1d';
 max_iterations = 3; %
 use_equivalent_eff_cond = strcmpi(geometry, '1d');
@@ -32,6 +30,12 @@ useRegionBruggemanCoefficients = true;
 debug = false;
 hessian = true;
 hessianSteps = [1e-5, 1e-6, 1e-7, 1e-8, 1e-9];
+
+printer = @(s) disp(jsonencode(s, 'PrettyPrint', true));
+getTime = @(states) cellfun(@(s) s.time, states);
+getE = @(states) cellfun(@(s) s.(ctrl).E, states);
+
+%% Configuration
 
 % Experimental data and base parameters
 datafilename = fullfile(getHydra0Dir(), 'raw-data', 'TE_1473.mat');
@@ -58,11 +62,6 @@ end
 expdata = expdata_all{end};
 optimization_lower_cutoff_voltage = min(expdata.E) - 0.5;
 jsonEQC = parseBattmoJson(fullfile(getHydra0Dir(), 'parameters', 'equilibrium-calibration-parameters.json'));
-
-% Utility functions
-getTime = @(states) cellfun(@(s) s.time, states);
-getE = @(states) cellfun(@(s) s.(ctrl).E, states);
-
 
 %% Main Optimization Loop
 fprintf('=== ITERATIVE PARAMETER OPTIMIZATION ===\n');
@@ -91,8 +90,10 @@ for iteration = 0:max_iterations
     end
 
     %% Run simulation
+    numTimesteps = 400;
     input_ref_1 = struct('I', expdata.I, ...
                          'totalTime', expdata.time(end), ...
+                         'numTimesteps', numTimesteps, ...
                          'geometry', geometry, ...
                          'include_current_collectors', include_current_collectors, ...
                          'lowRateParams', jsonEQC, ...
@@ -100,11 +101,17 @@ for iteration = 0:max_iterations
                          'useRegionBruggemanCoefficients', useRegionBruggemanCoefficients);
     output_ref_1 = runHydra(input_ref_1, 'clearSimulation', false);
 
-    % % Truncate if needed
-    % if output_ref_1.states{end}.time > expdata.time(end)
-    %     idx = find(getTime(output_ref_1.states) <= expdata.time(end), 1, 'last');
-    %     output_ref_1.states = output_ref_1.states(1:idx);
-    % end
+    % Evaluate the experimental voltage at the fixed simulation times.
+    simtimes = getTime(output_ref_1.states);
+    assert(expdata.time(1) <= simtimes(1));
+    assert(abs(expdata.time(end) - simtimes(end)) / expdata.time(end) < 1e-14);
+
+    Evals = interp1(expdata.time, expdata.E, simtimes, 'linear', 'extrap');
+    statesExp = cell(numel(output_ref_1.states), 1);
+    for k = 1:numel(output_ref_1.states)
+        statesExp{k}.time = simtimes(k);
+        statesExp{k}.(ctrl).E = Evals(k);
+    end
 
     %% Sensitivity Analysis
     fprintf('\n--- Sensitivity Analysis ---\n');
@@ -122,9 +129,11 @@ for iteration = 0:max_iterations
         PS.printBoxLims();
     end
 
-    simSetup = struct('state0', output_ref_1.initstate, ...
-                      'model', output_ref_1.model, ...
-                      'schedule', output_ref_1.schedule);
+    simSetup = SimulationSetup(struct('model', output_ref_1.model, ...
+                                      'schedule', output_ref_1.schedule, ...
+                                      'initstate', output_ref_1.initstate, ...
+                                      'NonLinearSolver', output_ref_1.nls, ...
+                                      'OutputMinisteps', false));
     PS.validate(simSetup.model);
 
     if iteration == 0
@@ -147,27 +156,20 @@ for iteration = 0:max_iterations
     % Objective function with proper scaling
     u = getScaledParameterVector(simSetup, parameters);
 
-    warning('check paramoptfuncreg objective');
-    paramoptfunc = ParamOptFuncReg(expdata, PS.shortnames, simSetup, u);
-    objFunc = @(model, states, schedule, parameters,p, varargin) ...
-              paramoptfunc.leastSquaresEWithReg(model, states, schedule, parameters,p, varargin{:});
-
-    vals = objFunc(simSetup.model, output_ref_1.states, simSetup.schedule, parameters, u);
+    objFunc = @(simsetup, states, varargin) leastSquaresEI(simsetup, states, statesExp, varargin{:});
+    vals = objFunc(simSetup, output_ref_1.states);
     objScaling = sum([vals{:}]);
+    objective = @(p, varargin) evalObjectiveBattmo(p, objFunc, simSetup, parameters, ...
+                                                   'objScaling', objScaling, varargin{:});
 
-    [v, gradient, ~] = evalObjectiveBattmoReg(...
-        u, objFunc, simSetup, parameters, ...
-        'gradientMethod', 'AdjointAD', 'objScaling', objScaling);
+    [v, gradient] = objective(u, 'gradientMethod', 'AdjointAD');
 
     if debug
 
         % Compare with finite difference gradient
         pertsize = 1e-6;
-        [v_fd, gradient_fd] = evalObjectiveBattmoReg(...
-            u, objFunc, simSetup, parameters, ...
-            'gradientMethod', 'PerturbationADNUM', ...
-            'PerturbationSize', pertsize, ...
-            'objScaling', objScaling);
+        [v_fd, gradient_fd] = objective(u, 'gradientMethod', 'PerturbationADNUM', ...
+                                        'PerturbationSize', pertsize);
 
         relErr = abs(gradient - gradient_fd) ./ (abs(gradient) + abs(gradient_fd));
         tol = 1e-4;
@@ -204,13 +206,11 @@ for iteration = 0:max_iterations
             'name', 'All_Parameters', ...
             'parameters', {PS.shortnames}, ...
             'priority', 1);
-        OptimizationSolver = 'unitboxbfgs';
     else
-        % grouping_strategy = 'hybrid_adaptive';
+        grouping_strategy = 'hybrid_adaptive';
         % grouping_strategy = 'magnitude';
-        grouping_strategy = 'physical';
+        % grouping_strategy = 'physical';
         parameter_groups = createClusteredParameterGroups(PS.shortnames, gradient_actual, grouping_strategy, 3);
-        OptimizationSolver = 'unitboxbfgs';
     end
 
     if iteration == 0
@@ -234,7 +234,7 @@ for iteration = 0:max_iterations
     fprintf('\n--- Group Optimization ---\n');
 
     current_output = output_ref_1;
-    current_jsonHRC = buildParameterJson(PS, PS.getValues(current_output.model));
+    current_jsonHRC = PS.buildParameterJson(PS.getValues(current_output.model));
     optimization_history = struct();
 
     for group_idx = 1:length(parameter_groups)
@@ -242,22 +242,21 @@ for iteration = 0:max_iterations
 
         fprintf('\nGroup %d: %s\n', group_idx, group.name);
 
-        % Store state for plotting
-        output_before = current_output;
-
         % Setup optimization
-        simSetup_group = struct('state0', current_output.initstate, ...
-                                'model', current_output.model, ...
-                                'schedule', current_output.schedule);
+        simSetupGroup = SimulationSetup(struct('model', current_output.model, ...
+                                               'schedule', current_output.schedule, ...
+                                               'initstate', current_output.initstate, ...
+                                               'NonLinearSolver', current_output.nls, ...
+                                               'OutputMinisteps', false));
 
         PS_group = ParamSetter('shortnames', group.parameters, ...
                                'useRegionBruggemanCoefficients', useRegionBruggemanCoefficients);
-        PS_group.validate(simSetup_group.model);
+        PS_group.validate(simSetupGroup.model);
 
         getValues_group = @(model, notused) PS_group.getValues(model);
         setValues_group = @(model, notused, v) PS_group.setValues(model, v);
 
-        params_group{1} = ModelParameterScaled(simSetup_group, ...
+        params_group{1} = ModelParameterScaled(simSetupGroup, ...
                                                'name', 'ParamSetter', ...
                                                'belongsTo', 'model', ...
                                                'location', {''}, ...
@@ -267,33 +266,37 @@ for iteration = 0:max_iterations
                                                'getfun', getValues_group, ...
                                                'setfun', setValues_group);
 
-        X0 = getScaledParameterVector(simSetup_group, params_group);
+        X0 = getScaledParameterVector(simSetupGroup, params_group);
 
         % Objective function with scaling
-        paramoptfunc_group = ParamOptFuncReg(expdata, group.parameters, simSetup_group, X0);
-        objFunc_group = @(model, states, schedule, params_group, varargin) ...
-            paramoptfunc_group.leastSquaresEWithReg(model, states, schedule, params_group, varargin{:});
-        vals_group = objFunc_group(simSetup_group.model, current_output.states, simSetup_group.schedule, params_group,X0);
+        objFuncGroup = @(simsetup, states, varargin) leastSquaresEI(simsetup, states, statesExp, varargin{:});
+        vals_group = objFuncGroup(simSetupGroup, current_output.states);
 
         objScaling_group = sum([vals_group{:}]);
 
         % Optimization
-        objectiveGradient = @(p, varargin) evalObjectiveBattmoReg( ...
-            p, objFunc_group, simSetup_group, params_group, ...
-            'objScaling', objScaling_group, ...
-            'OptimizationSolver', OptimizationSolver, varargin{:});
+        objectiveGradient = @(p, varargin) evalObjectiveBattmo(p, objFuncGroup, simSetupGroup, params_group, ...
+                                                               'objScaling', objScaling_group, varargin{:});
 
-        BFGSopts = {'objChangeTol', 1e-10, ...
-                    'gradTol', 1e-3, ...
-                    'maxit', 100, ...
-                    'maximize', false, ...
-                    'logPlot', true, ...
-                    'limitedMemory', ~hessian, ...
-                    'outputHessian', hessian};
-        [vOpt, Xopt, history] = unitBoxBFGS(X0, objectiveGradient, BFGSopts{:});
-
-        disp(getBFGSstopReason(history, BFGSopts));
-        disp(getBoxLimHits(simSetup_group, params_group, PS_group, Xopt));
+        gradTol = 1e-3;
+        objChangeTol = -inf;
+        maxit = 500;
+        [vOpt, Xopt, history] = unitBoxBFGS(X0, objectiveGradient, ...
+                                            'gradTol'         , gradTol     , ...
+                                            'objChangeTol'    , objChangeTol, ...
+                                            'lineSearchMaxIt' , 10          , ...
+                                            'maxInitialUpdate', 0.02        , ...
+                                            'maximize'        , false       , ...
+                                            'maxit'           , maxit       , ...
+                                            'logPlot'         , true        , ...
+                                            'limitedMemory'   , ~hessian    , ...
+                                            'outputHessian'   , hessian);
+        reasonStr = getReasonStr(history, ...
+                                 'gradTol'     , gradTol     , ...
+                                 'objChangeTol', objChangeTol, ...
+                                 'maxit'       , maxit);
+        disp(reasonStr);
+        disp(getBoxLimHits(simSetupGroup, params_group, PS_group, Xopt));
 
         % Store results
         optimization_history(group_idx).group_name = group.name;
@@ -309,9 +312,9 @@ for iteration = 0:max_iterations
         disp(PS_group.shortnames');
 
         % Apply optimized parameters
-        setupOpt = updateSetupFromScaledParameters(simSetup_group, params_group, Xopt);
+        setupOpt = updateSetupFromScaledParameters(simSetupGroup, params_group, Xopt);
 
-        current_jsonHRC = buildParameterJson(PS, PS.getValues(setupOpt.model));
+        current_jsonHRC = PS.buildParameterJson(PS.getValues(setupOpt.model));
 
         % Run simulation with new parameters
         current_jsonHRC_sim = current_jsonHRC;
@@ -412,20 +415,15 @@ if hessian
     hessianfdpertsize = 1e-6;
 
     debug = true;
-    [Hscaled, HfdScaled] = calculateHessians( ...
-        invHscaled, Xopt, objectiveGradient, PS_group.shortnames, debug, ...
-        hessianSteps, hessianfdpertsize);
+    Hscaled = calculateBFGSHessian(invHscaled, PS_group.shortnames);
+    if debug
+        [HfdComparison, HfdReport] = calculateFDHessian(Xopt, objectiveGradient, PS_group.shortnames, hessianSteps);
+        compareHessians(Hscaled, HfdComparison, HfdReport, Xopt, PS_group.shortnames);
+    end
+    HfdScaled = calculateFDHessian(Xopt, objectiveGradient, PS_group.shortnames, hessianfdpertsize);
 
     plotHessianEigenvectors(Hscaled, PS_group.shortnames, 'BFGS');
     plotHessianEigenvectors(HfdScaled, PS_group.shortnames, 'FD');
 end
 
 diary off;
-
-function jsonstruct = buildParameterJson(parameterSetter, values)
-    locs = parameterSetter.locations();
-    jsonstruct = struct();
-    for index = 1:numel(locs)
-        jsonstruct = setStructField(jsonstruct, locs{index}, values(index));
-    end
-end
